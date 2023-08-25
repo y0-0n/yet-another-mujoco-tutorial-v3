@@ -56,7 +56,6 @@ from amp.learning import amp_network_builder
 
 
 ## OmegaConf & Hydra Config
-
 # Resolvers used in hydra configs (see https://omegaconf.readthedocs.io/en/2.1_branch/usage.html#resolvers)
 OmegaConf.register_new_resolver('eq', lambda x, y: x.lower()==y.lower())
 OmegaConf.register_new_resolver('contains', lambda x, y: x.lower() in y.lower())
@@ -80,6 +79,7 @@ def launch_rlg_hydra(cfg: DictConfig):
 
     # sets seed. if seed is -1 will pick a random one
     cfg.seed = set_seed(cfg.seed, torch_deterministic=cfg.torch_deterministic)
+    ray.init(num_cpus=cfg.num_cpus)
 
     # `create_rlgpu_env` is environment construction function which is passed to RL Games and called internally.
     # We use the helper function here to specify the environment config.
