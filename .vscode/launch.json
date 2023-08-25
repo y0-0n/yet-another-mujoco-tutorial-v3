@@ -5,10 +5,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: train.py",
+            "name": "Python: main_amp.py",
             "type": "python",
             "request": "launch",
-            "program": "code/train.py",
+            "program": "code/main_amp.py",
             "console": "integratedTerminal",
             "justMyCode": false
         }
