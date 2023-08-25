@@ -23,7 +23,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
 
         self.PID = PID_ControllerClass(
                 name = 'PID',dim = self.n_ctrl,
-                k_p = 0.03, k_i = 0.001, k_d = 0.002,
+                k_p = 0.15, k_i = 0.001, k_d = 0.01,
                 out_min = self.ctrl_ranges[:,0],
                 out_max = self.ctrl_ranges[:,1],
                 ANTIWU  = True)
