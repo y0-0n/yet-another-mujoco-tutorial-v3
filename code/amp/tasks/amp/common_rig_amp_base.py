@@ -90,7 +90,7 @@ class CommonRigAMPBase(VecTask):
 
         # Added from JTM, Global state per environment
         # self._root_tensor = gymtorch.wrap_tensor(actor_root_state)
-        self._root_states = torch.zeros((self.num_envs, 13))
+        self._root_states = torch.zeros((self.num_envs, 13), device=self.device)
 
         # Added from JTM, Set actor indices
         self.actor_indices = torch.arange(self.num_actors_per_envs * self.num_envs, dtype=torch.long, device=self.device).view(self.num_envs, self.num_actors_per_envs)
@@ -113,7 +113,7 @@ class CommonRigAMPBase(VecTask):
         # self._box_buffer = self._initial_root_states.clone()
 
         # create some wrapper tensors for different slices
-        self._dof_state = torch.zeros((self.num_envs * self.num_dof, 2))
+        self._dof_state = torch.zeros((self.num_envs * self.num_dof, 2), device=self.device)
         self._dof_pos = self._dof_state.view(self.num_envs, self.num_dof, 2)[..., 0]
         self._dof_vel = self._dof_state.view(self.num_envs, self.num_dof, 2)[..., 1]
 
@@ -133,7 +133,7 @@ class CommonRigAMPBase(VecTask):
         self._rigid_body_vel = self._rigid_body_state.view(self.num_envs, self.num_bodies, 13)[:,:self.num_bodies-self.num_actors_per_envs+1, 7:10]
         self._rigid_body_ang_vel = self._rigid_body_state.view(self.num_envs, self.num_bodies, 13)[:,:self.num_bodies-self.num_actors_per_envs+1, 10:13]
 
-        self._contact_forces = torch.zeros((self.num_envs, self.num_bodies, 3))
+        self._contact_forces = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
 
         self._terminate_buf = torch.ones(self.num_envs, device=self.device, dtype=torch.long)
         
@@ -193,16 +193,16 @@ class CommonRigAMPBase(VecTask):
 
     def _create_ray_envs(self):
         # Ray parallelization
-        ray_visualize = True
-        self.mujoco_envs = [MuJoCoParserClassRay.remote(name='Common Rig Ray',rel_xml_path=self.asset_file, VERBOSE=True,USE_MUJOCO_VIEWER=ray_visualize, env_id=i) for i in range(self.num_envs)]
-        self.standard_env = MuJoCoParserClass(name='Common Rig',rel_xml_path=self.asset_file, VERBOSE=True,USE_MUJOCO_VIEWER=ray_visualize)
+        self.mujoco_envs = [MuJoCoParserClassRay.remote(name='Common Rig Ray',rel_xml_path=self.asset_file, VERBOSE=False,USE_MUJOCO_VIEWER=(not self.headless), env_id=i) for i in range(self.num_envs)]
+        self.standard_env = MuJoCoParserClass(name='Common Rig',rel_xml_path=self.asset_file, VERBOSE=False,USE_MUJOCO_VIEWER=False)
         for i, env in enumerate(self.mujoco_envs):
-            env.init_viewer.remote(viewer_title='Common Rig Ray'+str(i),viewer_width=1200,viewer_height=800,
-                    viewer_hide_menus=True)
-            env.update_viewer.remote(azimuth=174.08,distance=15,elevation=-23,lookat=[0.1,0.05,0.16],
-                    VIS_TRANSPARENT=True,VIS_CONTACTPOINT=True,
-                    contactwidth=0.2,contactheight=0.1,contactrgba=np.array([1,0,0,1]),
-                    VIS_JOINT=True,jointlength=0.5,jointwidth=0.1,jointrgba=[0.2,0.6,0.8,0.6])
+            if self.headless == False:
+                env.init_viewer.remote(viewer_title='Common Rig Ray'+str(i),viewer_width=1200,viewer_height=800,
+                        viewer_hide_menus=True)
+                env.update_viewer.remote(azimuth=174.08,distance=15,elevation=-23,lookat=[0.1,0.05,0.16],
+                        VIS_TRANSPARENT=True,VIS_CONTACTPOINT=True,
+                        contactwidth=0.2,contactheight=0.1,contactrgba=np.array([1,0,0,1]),
+                        VIS_JOINT=True,jointlength=0.5,jointwidth=0.1,jointrgba=[0.2,0.6,0.8,0.6])
 
         self.num_dof    = self.standard_env.n_rev_joint
         self.num_bodies = self.standard_env.n_body - 1 # Except worldbody
@@ -365,11 +365,11 @@ class CommonRigAMPBase(VecTask):
 
         return
     
-    def fetch_result(self):
-        self._root_states = torch.zeros((self.num_envs, 13))
-        self._dof_pos = torch.zeros((self.num_envs, self.num_dof), device=self.device, dtype=torch.float)
-        self._dof_vel = torch.zeros((self.num_envs, self.num_dof), device=self.device, dtype=torch.float)
-        self._rigid_body_state = torch.zeros((self.num_envs * self.num_bodies, 13), device=self.device, dtype=torch.float)
+    # def fetch_result(self):
+    #     self._root_states = torch.zeros((self.num_envs, 13))
+    #     self._dof_pos = torch.zeros((self.num_envs, self.num_dof), device=self.device, dtype=torch.float)
+    #     self._dof_vel = torch.zeros((self.num_envs, self.num_dof), device=self.device, dtype=torch.float)
+    #     self._rigid_body_state = torch.zeros((self.num_envs * self.num_bodies, 13), device=self.device, dtype=torch.float)
         
     # yoon0_0
     def _get_dof_axis_angle(self, dof_pos):

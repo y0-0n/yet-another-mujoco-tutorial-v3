@@ -246,8 +246,8 @@ class CommonRigAMP(CommonRigAMPBase):
     def _set_env_state(self, env_ids, root_pos, root_rot, dof_pos, root_vel, root_ang_vel, dof_vel, collision_test=True):
         set_envs = []
         for i, env_id in enumerate(env_ids):
-            q=np.concatenate((np.array(root_pos[i]), np.array(root_rot[i, [3,0,1,2]]), np.array(dof_pos[i])),axis=0) # root_pos, root_rot, dof_pos
-            dq=np.concatenate((np.array(root_vel[i]), np.array(root_ang_vel[i]), np.array(dof_vel[i])),axis=0) # root_pos, root_rot, dof_pos
+            q=np.concatenate((root_pos[i].cpu().numpy(), root_rot[i, [3,0,1,2]].cpu().numpy(), dof_pos[i].cpu().numpy()),axis=0) # root_pos, root_rot, dof_pos
+            dq=np.concatenate((root_vel[i].cpu().numpy(), root_ang_vel[i].cpu().numpy(), dof_vel[i].cpu().numpy()),axis=0) # root_pos, root_rot, dof_pos
             set_envs.append(self.mujoco_envs[env_id].assign_vel.remote(dq=dq,joint_idxs=list(range(0,6))+(self.standard_env.rev_joint_idxs+5).tolist()))
             set_envs.append(self.mujoco_envs[env_id].forward.remote(q=q,joint_idxs=list(range(0,7))+(self.standard_env.rev_joint_idxs+6).tolist(),INCREASE_TICK=False))
         # q=np.concatenate((np.array(root_pos), np.array(root_rot[:, [3,0,1,2]]), np.array(dof_pos)),axis=-1) # root_pos, root_rot, dof_pos

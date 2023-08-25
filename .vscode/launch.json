@@ -5,12 +5,32 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: train.py",
+            "name": "Python: main_amp.py",
             "type": "python",
             "request": "launch",
-            "program": "code/train.py",
+            "args": [
+                "num_envs=2",
+                // "test=True",
+                "headless=False",
+                // "checkpoint=runs/CommonRigAMP/nn/CommonRigAMP_1100.pth"
+            ],
+            "program": "code/main_amp.py",
+            "console": "integratedTerminal",
+            "justMyCode": false
+        },
+        {
+            "name": "Python: Test",
+            "type": "python",
+            "request": "launch",
+            "program": "code/main_amp.py",
+            "args": [
+                "num_envs=2",
+                "test=True",
+                "headless=False",
+                "checkpoint=runs/CommonRigAMP/nn/CommonRigAMP_1100.pth"
+            ],
             "console": "integratedTerminal",
             "justMyCode": false
         }
-    ]
+    ],
 }

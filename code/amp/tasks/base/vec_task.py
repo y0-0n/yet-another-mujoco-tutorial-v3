@@ -294,29 +294,29 @@ class VecTask(Env):
         if self.dr_randomizations.get('actions', None):
             actions = self.dr_randomizations['actions']['noise_lambda'](actions)
         
-        action_tensor = torch.clamp(actions, -self.clip_actions, self.clip_actions)
 
-        rollouts = []
-        for action, env in zip(action_tensor, self.mujoco_envs):
-            rollouts.append(env.step.remote(ctrl=action))
+        # rollouts = []
+        # for action, env in zip(action_tensor, self.mujoco_envs):
+        #     rollouts.append(env.step.remote(ctrl=action))
 
         # apply actions
         self.pre_physics_step(actions)
-        pd_tar = self._action_to_pd_targets(self.actions)
+        action_tensor = torch.clamp(actions, -self.clip_actions, self.clip_actions)
+        pd_tar = self._action_to_pd_targets(action_tensor)
 
         rollouts = []
         for trgt, env in zip(pd_tar, self.mujoco_envs):
-            rollouts.append(env.pd_step.remote(trgt=trgt))
+            rollouts.append(env.pd_step.remote(trgt=trgt.cpu().numpy()))
             # env.step.remote(ctrl=action)
 
         self._contact_forces = torch.zeros_like(self._contact_forces)
         results = ray.get(rollouts)
 
         for i, res in enumerate(results):
-            self._root_states[i] = torch.tensor(res['actor_root_states'])
-            self._dof_pos[i] = torch.tensor(res['dof_pos'])
-            self._dof_vel[i] = torch.tensor(res['dof_vel'])
-            self._rigid_body_pos[i] = torch.tensor(res['rigid_body_pos'])
+            self._root_states[i] = torch.tensor(res['actor_root_states'], device=self.device)
+            self._dof_pos[i] = torch.tensor(res['dof_pos'], device=self.device)
+            self._dof_vel[i] = torch.tensor(res['dof_vel'], device=self.device)
+            self._rigid_body_pos[i] = torch.tensor(res['rigid_body_pos'], device=self.device)
             contact_info = res['contact_info']
             # for body_name, force in zip(contact_info[5], np.array(contact_info[1])):
             for body_name, force in zip(set(contact_info[5]), np.unique(np.array(contact_info[1]), axis=0)): # NOTE : might occur error

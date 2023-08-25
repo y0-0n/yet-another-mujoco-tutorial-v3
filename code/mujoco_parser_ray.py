@@ -23,11 +23,14 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
 
         self.PID = PID_ControllerClass(
                 name = 'PID',dim = self.n_ctrl,
-                k_p = 0.15, k_i = 0.001, k_d = 0.01,
+                k_p = 0.5, k_i = 0.01, k_d = 0.001,
                 out_min = self.ctrl_ranges[:,0],
                 out_max = self.ctrl_ranges[:,1],
                 ANTIWU  = True)
-
+        
+        # Change floor friction
+        self.model.geom('floor').friction = np.array([1,0.01,0]) # default: np.array([1,0.01,0])
+        self.model.geom('floor').priority = 1 # >0
     
     def play_steps(self):
         raise NotImplementedError("play_steps not implemented")
@@ -121,7 +124,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
         """
 
         qpos = self.get_q(self.ctrl_joint_idxs)
-        self.PID.update(x_trgt=trgt.numpy(),t_curr=self.get_sim_time(),x_curr=qpos,VERBOSE=False)
+        self.PID.update(x_trgt=trgt,t_curr=self.get_sim_time(),x_curr=qpos,VERBOSE=False)
         torque = self.PID.out()
 
         super().step(ctrl=torque,ctrl_idxs=ctrl_idxs,nstep=nstep,INCREASE_TICK=INCREASE_TICK)
