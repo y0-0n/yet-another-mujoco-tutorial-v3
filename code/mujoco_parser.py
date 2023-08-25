@@ -958,7 +958,7 @@ class MuJoCoParserClass(object):
         """
         return np.array([self.get_qpos_joint(joint_name) for joint_name in joint_names]).squeeze()
     
-    def get_qvel_joint(self,joint_names):
+    def get_qvel_joints(self,joint_names):
         """
             Get multiple joint velocities from 'joint_names'
         """

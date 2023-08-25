@@ -10,11 +10,12 @@
     <default>
         <joint limited="true" damping="1" armature="0"/>
         <!-- <geom condim="1" material="matgeom"/> -->
-        <geom contype="1" condim="1" margin="0.001" solref=".02 1" solimp=".8 .8 .01" material="matgeom" friction="0.8 0.8 0.8" />
+        <geom contype="1" condim="3" margin="0.001" solref=".02 1" solimp=".8 .8 .01" material="matgeom"/>
         <motor ctrlrange="-.4 .4" ctrllimited="true"/>
     </default>
 
     <option timestep="0.005" iterations="50" tolerance="1e-10" solver="Newton" jacobian="dense" cone="pyramidal"/>
+
     <size nconmax="50" njmax="200" nstack="10000"/>
 
     <visual>
@@ -25,23 +26,34 @@
     </visual>
 
     <asset>
+        <texture type="skybox" builtin="gradient" rgb1="0.3 0.5 0.7" rgb2="0 0 0" width="512" height="512"/> 
+
+        <texture name="texplane" type="2d" builtin="checker" rgb1=".2 .3 .4" rgb2=".1 0.15 0.2" width="512" height="512" mark="cross" markrgb=".8 .8 .8"/>  
+
         <texture name="texgeom" type="cube" builtin="flat" mark="cross" width="127" height="1278" 
             rgb1="0.8 0.6 0.4" rgb2="0.8 0.6 0.4" markrgb="1 1 1" random="0.01"/>  
-        <material name="matgeom" texture="texgeom" texuniform="true" rgba="0.8 0.6 0.4 1.0"/>
+
+        <material name="matplane" reflectance="0.3" texture="texplane" texrepeat="1 1" texuniform="true"/>
+
+        <material name="matgeom" texture="texgeom" texuniform="true" rgba="0.8 0.6 .4 1"/>
     </asset>
 
     <worldbody>
-        
-        <body name="base" pos="0 0 0.9">
+        <!-- <geom name="floor" pos="0 0 0" size="0 0 .25" type="plane" material="matplane" condim="3"/> -->
+
+        <light directional="false" diffuse=".2 .2 .2" specular="0 0 0" pos="0 0 5" dir="0 0 -1" castshadow="false"/>
+        <light mode="targetbodycom" target="base" directional="false" diffuse=".8 .8 .8" specular="0.3 0.3 0.3" pos="0 0 4.0" dir="0 0 -1"/>       
+
+        <body name="base" pos="0 0 0.865">
             <freejoint name="base"/>
             <geom name="base" type="sphere" pos="0 0 0" size="0.06"/>
             <body name="torso" pos="0 0 0" euler="0 0 0" >
-                <geom name="root2spine" type="capsule" fromto="0 0 0 0 0 0.1990"  size="0.04" density="2226"/>
-                <joint name="root1" type="hinge" pos="0 0 0" axis="1 0 0" range="-3.141592 3.141592" damping="5" stiffness="0" armature="0.02" />
-                <joint name="root2" type="hinge" pos="0 0 0" axis="0 1 0" range="-3.141592 3.141592" damping="5" stiffness="0" armature="0.02" />
-                <joint name="root3" type="hinge" pos="0 0 0" axis="0 0 1" range="-3.141592 3.141592" damping="5" stiffness="0" armature="0.02" />
+                <geom name="root2spine" type="capsule" fromto="0 0 0 0 0 0.1990"  size="0.04" />
+                <joint name="root1" type="hinge" pos="0 0 0" axis="1 0 0" range="-3.141592 3.141592" damping="5" stiffness="20" armature="0.02" />
+                <joint name="root2" type="hinge" pos="0 0 0" axis="0 1 0" range="-3.141592 3.141592" damping="5" stiffness="20" armature="0.02" />
+                <joint name="root3" type="hinge" pos="0 0 0" axis="0 0 1" range="-3.141592 3.141592" damping="5" stiffness="20" armature="0.02" />
                 <body name="spine" pos="0 0 0.1990" euler="0 0 0">
-                    <geom name="spine2neck" type="capsule" fromto="0 0 0 0 0 0.1990"  size="0.04" density="2226"/>
+                    <geom name="spine2neck" type="capsule" fromto="0 0 0 0 0 0.1990"  size="0.04" />
                     <joint name="spine" type="hinge" pos="0 0 0" axis="0 1 0" range="-3.141592 3.141592" damping="5" stiffness="20" armature="0.02" />
                     <body name="neck" pos="0 0 0.1990" euler="0 0 0">
                         <geom name="neck2rshoulder" type="capsule" fromto="0 0 0 0 -0.1809 0"  size="0.04" />
@@ -49,17 +61,17 @@
                         <body name="right_shoulder" pos="0 -0.1809 0" euler="0 0 0">
                             <geom name="rshoulder2relbow" type="capsule" fromto="0 0 0 0 -0.2768 0"  size="0.04" />
                             <joint name="rs1" type="hinge" pos="0 0 0" axis="1 0 0" range="-3.141592 3.141592" stiffness="1" armature="0.0068" />
-                            <joint name="rs2" type="hinge" pos="0 0 0" axis="0 1 0" range="-3.141592 3.141592" stiffness="1" armature="0.0051" />
-                            <joint name="rs3" type="hinge" pos="0 0 0" axis="0 0 1" range="-3.141592 3.141592" stiffness="1" armature="0.0051" />
+                            <joint name="rs2" type="hinge" pos="0 0 0" axis="0 0 1" range="-3.141592 3.141592" stiffness="1" armature="0.0051" />
+                            <joint name="rs3" type="hinge" pos="0 0 0" axis="0 1 0" range="-3.141592 3.141592" stiffness="1" armature="0.0051" />
                             <body name="right_elbow" pos="0 -0.2768 0" euler="0 0 0">
                                 <geom name="relbow2rwrist" type="capsule" fromto="0 0 0 0 -0.1815 0"  size="0.04" />
-                                <joint name="re" type="hinge" pos="0 0 0" axis="0 0 1" range="0.01 2.61666666667" stiffness="0" armature="0.0028" />
+                                <joint name="re" type="hinge" pos="0 0 0" axis="0 0 1" range="0.01 2.61666666667" stiffness="0" damping="15" armature="0.0028" />
                                 <body name="right_hand" pos="0 -0.1815 0" euler="0 0 0">
                                     <geom name="rthumb" type="box" pos="0.03 -0.05 0" size="0.015 0.07 0.015" euler="0 0 60"/>
                                     <geom name="rpalm" type="box" pos="0 -0.06 0" size="0.04 0.075 0.015" euler="0 0 0"/>
-                                    <joint name="rw1" type="hinge" pos="0 0 0" axis="1 0 0" range="-3.141592 3.141592" damping="5" stiffness="20" armature="0.02" />
-                                    <joint name="rw2" type="hinge" pos="0 0 0" axis="0 1 0" range="-3.141592 3.141592" damping="5" stiffness="20" armature="0.02" />
-                                    <joint name="rw3" type="hinge" pos="0 0 0" axis="0 0 1" range="-3.141592 3.141592" damping="5" stiffness="20" armature="0.02" />
+                                    <joint name="rw1" type="hinge" pos="0 0 0" axis="0 1 0" range="-3.141592 3.141592" damping="5" stiffness="20" armature="0.02" />
+                                    <joint name="rw2" type="hinge" pos="0 0 0" axis="0 0 1" range="-3.141592 3.141592" damping="5" stiffness="20" armature="0.02" />
+                                    <joint name="rw3" type="hinge" pos="0 0 0" axis="1 0 0" range="-3.141592 3.141592" damping="5" stiffness="20" armature="0.02" />
                                 </body>
                             </body>
                         </body>
@@ -70,13 +82,13 @@
                             <joint name="ls3" type="hinge" pos="0 0 0" axis="0 0 1" range="-3.141592 3.141592" stiffness="1" armature="0.0051" />
                             <body name="left_elbow" pos="0 0.2768 0" euler="0 0 0">
                                 <geom name="lelbow2lwrist" type="capsule" fromto="0 0 0 0 0.1815 0"  size="0.04" />
-                                <joint name="le" type="hinge" pos="0 0 0" axis="0 0 1" range="-2.61666666667 -0.01" stiffness="0" damping="15" armature="0.0028" />
+                                <joint name="le" type="hinge" pos="0 0 0" axis="0 0 1" range="-2.61666666667 -0.01" stiffness="0" armature="0.0028" />
                                 <body name="left_hand" pos="0 0.1815 0" euler="0 0 0">
                                     <geom name="lthumb" type="box" pos="0.03 0.05 0" size="0.015 0.07 0.015" euler="0 0 -60"/>
                                     <geom name="lpalm" type="box" pos="0 0.06 0" size="0.04 0.075 0.015" euler="0 0 0"/>
-                                    <joint name="lw1" type="hinge" pos="0 0 0" axis="1 0 0" range="-3.141592 3.141592" damping="5" stiffness="20" armature="0.02" />
-                                    <joint name="lw2" type="hinge" pos="0 0 0" axis="0 1 0" range="-3.141592 3.141592" damping="5" stiffness="20" armature="0.02" />
-                                    <joint name="lw3" type="hinge" pos="0 0 0" axis="0 0 1" range="-3.141592 3.141592" damping="5" stiffness="20" armature="0.02" />
+                                    <joint name="lw1" type="hinge" pos="0 0 0" axis="0 1 0" range="-3.141592 3.141592" damping="5" stiffness="20" armature="0.02" />
+                                    <joint name="lw2" type="hinge" pos="0 0 0" axis="0 0 1" range="-3.141592 3.141592" damping="5" stiffness="20" armature="0.02" />
+                                    <joint name="lw3" type="hinge" pos="0 0 0" axis="1 0 0" range="-3.141592 3.141592" damping="5" stiffness="20" armature="0.02" />
                                 </body>
                             </body>
                         </body>
@@ -99,13 +111,13 @@
                     <joint name="rp3" type="hinge" pos="0 0 0" axis="0 0 1" range="-0.52333333333 0.52333333333" damping="5" stiffness="10" armature="0.01" />
                     <body name="right_knee" pos="0 0 -0.4049" euler="0 0 0">
                         <geom name="rknee2rankle" type="capsule" fromto="0 0 0 0 0 -0.4057"  size="0.04" />
-                        <joint name="rk" type="hinge" pos="0 0 0" axis="0 1 0" range="0.0175 2.0944" damping="30" stiffness="1" armature="0.0060" />
+                        <joint name="rk" type="hinge" pos="0 0 0" axis="0 1 0" range="0.0175 2.0944" stiffness="1" armature="0.0060" />
                         <body name="right_ankle" pos="0 0 -0.4057" euler="0 0 0">
                             <geom name="rankle" type="box" pos="0 0 -0.025" size="0.03 0.03 0.025" />
                             <geom name="rfoot" type="box" pos="0.03 0 -0.05" size="0.1 0.05 0.015" />
-                            <joint name="ra1" type="hinge" pos="0 0 0" axis="1 0 0" range="-3.141592 3.141592" stiffness="4" armature="0.0008" />
-                            <joint name="ra2" type="hinge" pos="0 0 0" axis="0 1 0" range="-3.141592 3.141592" stiffness="1" armature="0.0006" />
-                            <joint name="ra3" type="hinge" pos="0 0 0" axis="0 0 1" range="-3.141592 3.141592" stiffness="1" armature="0.0006" />
+                            <joint name="ra1" type="hinge" pos="0 0 0" axis="0 1 0" range="-3.141592 3.141592" stiffness="4" armature="0.0008" />
+                            <joint name="ra2" type="hinge" pos="0 0 0" axis="1 0 0" range="-3.141592 3.141592" stiffness="1" armature="0.0006" />
+                            <joint name="ra3" type="hinge" pos="0 0 0" axis="0 0 1" range="-0.52333333333 0.52333333333" stiffness="1" armature="0.0006" />
                         </body>
                     </body>
                 </body>
@@ -116,15 +128,15 @@
                     <geom name="lpelvis2lknee" type="capsule" fromto="0 0 0 0 0 -0.4049"  size="0.04" />
                     <joint name="lp1" type="hinge" pos="0 0 0" axis="1 0 0" range="-3.141592 3.141592" damping="5" stiffness="10" armature="0.01" />
                     <joint name="lp2" type="hinge" pos="0 0 0" axis="0 1 0" range="-3.141592 3.141592" damping="5" stiffness="20" armature="0.01" />
-                    <joint name="lp3" type="hinge" pos="0 0 0" axis="0 0 1" range="-3.141592 3.141592" damping="5" stiffness="10" armature="0.01" />
+                    <joint name="lp3" type="hinge" pos="0 0 0" axis="0 0 1" range="-0.52333333333 0.52333333333" damping="5" stiffness="10" armature="0.01" />
                     <body name="left_knee" pos="0 0 -0.4049" euler="0 0 0">
                         <geom name="lknee2lankle" type="capsule" fromto="0 0 0 0 0 -0.4057"  size="0.04" />
                         <joint name="lk" type="hinge" pos="0 0 0" axis="0 1 0" range="0.0175 2.0944" stiffness="1" armature="0.0060" />
                         <body name="left_ankle" pos="0 0 -0.4057" euler="0 0 0">
                             <geom name="lankle" type="box" pos="0 0 -0.025" size="0.03 0.03 0.025" />
                             <geom name="lfoot" type="box" pos="0.03 0 -0.05" size="0.1 0.05 0.015" />
-                            <joint name="la1" type="hinge" pos="0 0 0" axis="1 0 0" range="-3.141592 3.141592" stiffness="4" armature="0.0008" />
-                            <joint name="la2" type="hinge" pos="0 0 0" axis="0 1 0" range="-3.141592 3.141592" stiffness="1" armature="0.0006" />
+                            <joint name="la1" type="hinge" pos="0 0 0" axis="0 1 0" range="-3.141592 3.141592" stiffness="4" armature="0.0008" />
+                            <joint name="la2" type="hinge" pos="0 0 0" axis="1 0 0" range="-3.141592 3.141592" stiffness="1" armature="0.0006" />
                             <joint name="la3" type="hinge" pos="0 0 0" axis="0 0 1" range="-0.52333333333 0.52333333333" stiffness="1" armature="0.0006" />
                         </body>
                     </body>
