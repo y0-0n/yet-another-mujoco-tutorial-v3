@@ -23,9 +23,10 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
 
         self.PID = PID_ControllerClass(
                 name = 'PID',dim = self.n_ctrl,
-                k_p = 1.5, k_i = 0.01, k_d = 0.001,
+                k_p = 0.5, k_i = 0.01, k_d = 0.001,
                 out_min = self.ctrl_ranges[:,0],
                 out_max = self.ctrl_ranges[:,1],
+                dt = 0.005,
                 ANTIWU  = True)
         
         # Change floor friction
