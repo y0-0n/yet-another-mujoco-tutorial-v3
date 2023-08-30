@@ -23,7 +23,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
 
         self.PID = PID_ControllerClass(
                 name = 'PID',dim = self.n_ctrl,
-                k_p = 0.5, k_i = 0.01, k_d = 0.001,
+                k_p = 1.5, k_i = 0.01, k_d = 0.001,
                 out_min = self.ctrl_ranges[:,0],
                 out_max = self.ctrl_ranges[:,1],
                 ANTIWU  = True)
@@ -67,21 +67,21 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
 
     def get_ps(self):
         """
-            Get body rotation matrix
+            Get x
         """
         return self.data.xpos[1:].copy()
 
     def get_qposes(self):
         """
-            Get body rotation matrix
+            Get 
         """
-        return self.data.qpos[self.ctrl_qpos_idxs].copy()
+        return self.data.qpos[self.rev_joint_idxs+6].copy()
 
     def get_qvels(self):
         """
-            Get body rotation matrix
+            Get 
         """
-        return self.data.qvel[self.ctrl_qvel_idxs].copy()
+        return self.data.qvel[self.rev_joint_idxs+5].copy()
     
     # _______________________________________________________
     def generator_step(self, action, render_every=1):
