@@ -31,6 +31,10 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
         # Change floor friction
         self.model.geom('floor').friction = np.array([1,0.01,0]) # default: np.array([1,0.01,0])
         self.model.geom('floor').priority = 1 # >0
+        if (self.VERBOSE):
+            print("PID controller ready")
+            print('Floor friction: ',self.model.geom('floor').friction)
+            print('Floor priority: ',self.model.geom('floor').priority)
     
     def play_steps(self):
         raise NotImplementedError("play_steps not implemented")
@@ -42,6 +46,8 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
 
     def reset_PID(self):
         self.PID.reset()
+        if (self.VERBOSE):
+            print("PID controller reset")
 
     def assign_vel(self,dq=None,joint_idxs=None):
         if dq is not None:
@@ -124,7 +130,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
         """
 
         qpos = self.get_q(self.ctrl_joint_idxs)
-        self.PID.update(x_trgt=trgt,t_curr=self.get_sim_time(),x_curr=qpos,VERBOSE=False)
+        self.PID.update(x_trgt=trgt,t_curr=self.get_sim_time(),x_curr=qpos,VERBOSE=self.VERBOSE)
         torque = self.PID.out()
 
         super().step(ctrl=torque,ctrl_idxs=ctrl_idxs,nstep=nstep,INCREASE_TICK=INCREASE_TICK)
@@ -140,6 +146,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
             # "root_p": self.get_p_body('base'),
             # "root_R": self.get_R_body('base')
         }
+            
         return result_dict
 
 
