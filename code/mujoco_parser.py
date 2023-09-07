@@ -36,9 +36,15 @@ class MuJoCoParserClass(object):
         """
             Parse an xml file
         """
-        self.full_xml_path    = os.path.abspath(os.path.join(os.getcwd(),self.rel_xml_path))
-        self.model            = mujoco.MjModel.from_xml_path(self.full_xml_path)
-        self.data             = mujoco.MjData(self.model)
+        if self.rel_xml_path.split('.')[-1] == 'xml':
+            self.full_xml_path    = os.path.abspath(os.path.join(os.getcwd(),self.rel_xml_path))
+            self.model            = mujoco.MjModel.from_xml_path(self.full_xml_path)
+            self.data             = mujoco.MjData(self.model)
+        elif self.rel_xml_path.split('.')[-1] == 'mjb':
+            self.full_mjb_path    = os.path.abspath(os.path.join(os.getcwd(),self.rel_xml_path))
+            self.model = mujoco.MjModel.from_binary_path(self.full_mjb_path)
+            self.data = mujoco.MjData(self.model)
+
         self.dt               = self.model.opt.timestep
         self.HZ               = int(1/self.dt)
         self.n_geom           = self.model.ngeom # number of geometries
@@ -1103,3 +1109,12 @@ class MuJoCoParserClass(object):
         jntadr  = self.model.body(root_name).jntadr[0]
         qposadr = self.model.jnt_qposadr[jntadr]
         self.data.qpos[qposadr+3:qposadr+7] = r2quat(R)
+
+    def set_quat_root(self,root_name='torso',quat=np.array([0,0,0,1])):
+        """ 
+            Set the rotation of a root joint
+            FK must be called after
+        """
+        jntadr  = self.model.body(root_name).jntadr[0]
+        qposadr = self.model.jnt_qposadr[jntadr]
+        self.data.qpos[qposadr+3:qposadr+7] = quat
