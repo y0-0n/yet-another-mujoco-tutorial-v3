@@ -149,6 +149,7 @@ class CommonRigAMP(CommonRigAMPBase):
 
         return
     
+    # Not work
     def _reset_default(self, env_ids):
         self._dof_pos[env_ids] = self._initial_dof_pos[env_ids]
         self._dof_vel[env_ids] = self._initial_dof_vel[env_ids]
@@ -163,6 +164,7 @@ class CommonRigAMP(CommonRigAMPBase):
         self._reset_default_env_ids = env_ids
         return
 
+    # Work
     def _reset_ref_state_init(self, env_ids):
         num_envs = env_ids.shape[0]
         motion_ids = self._motion_lib.sample_motions(num_envs)
@@ -180,7 +182,7 @@ class CommonRigAMP(CommonRigAMPBase):
         root_pos, root_rot, dof_pos, root_vel, root_ang_vel, dof_vel, key_pos \
                = self._motion_lib.get_motion_state(motion_ids, motion_times)
         # TODO l5vd5: to prevent from penetration
-        root_pos[:,2] += 0.0
+        root_pos[:,2] += 0.05
         self._set_env_state(env_ids=env_ids, 
                             root_pos=root_pos, 
                             root_rot=root_rot, 
@@ -248,8 +250,8 @@ class CommonRigAMP(CommonRigAMPBase):
         for i, env_id in enumerate(env_ids):
             q=np.concatenate((root_pos[i].cpu().numpy(), root_rot[i, [3,0,1,2]].cpu().numpy(), dof_pos[i].cpu().numpy()),axis=0) # root_pos, root_rot, dof_pos
             dq=np.concatenate((root_vel[i].cpu().numpy(), root_ang_vel[i].cpu().numpy(), dof_vel[i].cpu().numpy()),axis=0) # root_pos, root_rot, dof_pos
-            set_envs.append(self.mujoco_envs[env_id].assign_vel.remote(dq=dq,joint_idxs=list(range(0,6))+(self.standard_env.rev_joint_idxs+5).tolist()))
-            set_envs.append(self.mujoco_envs[env_id].forward.remote(q=q,joint_idxs=list(range(0,7))+(self.standard_env.rev_joint_idxs+6).tolist(),INCREASE_TICK=False))
+            set_envs.append(self.mujoco_envs[env_id].assign_vel.remote(dq=dq,joint_idxs=list(range(0,6))+self.standard_env.ctrl_qvel_idxs))
+            set_envs.append(self.mujoco_envs[env_id].forward.remote(q=q,joint_idxs=list(range(0,7))+self.standard_env.ctrl_qpos_idxs,INCREASE_TICK=True))
         # q=np.concatenate((np.array(root_pos), np.array(root_rot[:, [3,0,1,2]]), np.array(dof_pos)),axis=-1) # root_pos, root_rot, dof_pos
         # dq=np.concatenate((np.array(root_vel), np.array(root_ang_vel), np.array(dof_vel)),axis=-1) # root_pos, root_rot, dof_pos
         # ray.get(set_envs)
