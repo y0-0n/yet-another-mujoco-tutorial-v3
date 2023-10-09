@@ -3,8 +3,11 @@ name: CommonRigAMP
 
 physics_engine: ${..physics_engine}
 
-rl_device: 'cpu'
+rl_device: 'cuda:0'
 # if given, will override the device setting in gym.
+env_config:
+    horizon_length: ${train.params.config.horizon_length}
+
 env:
     numEnvs: ${resolve_default:4096,${...num_envs}}
     # numMuJoCoEnvs: ${resolve_default:2,${...num_mujoco_envs}}
