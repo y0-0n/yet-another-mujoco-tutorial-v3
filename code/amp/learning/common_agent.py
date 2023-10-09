@@ -108,6 +108,15 @@ class CommonAgent(a2c_continuous.A2CAgent):
         self.experience_buffer.tensor_dict['next_obses'] = torch.zeros_like(self.experience_buffer.tensor_dict['obses'])
         self.experience_buffer.tensor_dict['next_values'] = torch.zeros_like(self.experience_buffer.tensor_dict['values'])
 
+        # ray yoon0-0
+        for env in self.vec_env.env.mujoco_envs:
+            env.init_models.remote(model=self.model.to('cpu'),running_mean_std=self.running_mean_std.to('cpu'),value_mean_std=self.value_mean_std.to('cpu'))
+        
+        # reset device
+        # self.model.cuda()
+        # self.running_mean_std.cuda()
+        # self.value_mean_std.cuda()
+
         self.tensor_list += ['next_obses']
         return
 
@@ -118,7 +127,7 @@ class CommonAgent(a2c_continuous.A2CAgent):
         total_time = 0
         rep_count = 0
         self.frame = 0
-        self.obs = self.env_reset()
+        # self.obs = self.env_reset()
         self.curr_frames = self.batch_size_envs
 
         self.model_output_file = os.path.join(self.network_path, self.config['name'])
@@ -411,10 +420,15 @@ class CommonAgent(a2c_continuous.A2CAgent):
         return
 
     def discount_values(self, mb_fdones, mb_values, mb_rewards, mb_next_values):
+        # yoon0-0 : transpose
         lastgaelam = 0
+        mb_fdones = mb_fdones.transpose(0, 1)
+        mb_rewards = mb_rewards.transpose(0, 1)
+        mb_values = mb_values.transpose(0, 1)
+        mb_next_values = mb_next_values.transpose(0, 1)
         mb_advs = torch.zeros_like(mb_rewards)
 
-        for t in reversed(range(self.horizon_length)):
+        for t in reversed(range(self.horizon_length)): 
             not_done = 1.0 - mb_fdones[t]
             not_done = not_done.unsqueeze(1)
 
@@ -422,7 +436,7 @@ class CommonAgent(a2c_continuous.A2CAgent):
             lastgaelam = delta + self.gamma * self.tau * not_done * lastgaelam
             mb_advs[t] = lastgaelam
 
-        return mb_advs
+        return mb_advs.transpose(0, 1)
 
     def bound_loss(self, mu):
         if self.bounds_loss_coef is not None:
@@ -466,8 +480,10 @@ class CommonAgent(a2c_continuous.A2CAgent):
 
     def _eval_critic(self, obs_dict):
         self.model.eval()
-        obs = obs_dict['obs']
+        # obs = obs_dict['obs'] # TODO: yoon0-0
+        obs = obs_dict
         processed_obs = self._preproc_obs(obs)
+        # processed_obs = self._preproc_obs(obs)
         value = self.model.a2c_network.eval_critic(processed_obs)
 
         if self.normalize_value:

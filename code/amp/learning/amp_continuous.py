@@ -93,7 +93,7 @@ class AMPAgent(common_agent.CommonAgent):
         for env in self.vec_env.env.mujoco_envs:
             env.reset_PID.remote()
         for n in range(self.horizon_length):
-            self.obs, done_env_ids = self._env_reset_done() # done env만 reset
+            self.obs, done_env_ids = self._env_reset_done()
             self.experience_buffer.update_data('obses', n, self.obs['obs'])
 
             if self.use_action_masks:
@@ -158,6 +158,75 @@ class AMPAgent(common_agent.CommonAgent):
             batch_dict[k] = a2c_common.swap_and_flatten01(v)
 
         return batch_dict
+    
+    def play_steps_ray(self):
+        self.set_eval()
+
+        epinfos = []
+        update_list = self.update_list
+        # ____ start for ________
+        self.obs, rewards, self.dones, infos = self.env_step()
+
+        for n, (obs, reward, done, amp_obs, terminate, prev_obs) in enumerate(zip(self.obs['obs'], rewards, self.dones, infos['amp_obs'], infos['terminate'], infos['prev_obs'])):
+            
+            self.experience_buffer.update_data('obses', n, torch.cat((prev_obs.unsqueeze(dim=0), obs[1:,:])))
+            
+            for k in update_list:
+                self.experience_buffer.update_data(k, n, infos['res_dicts'][k][n])
+
+            # if self.has_central_value:
+            #     self.experience_buffer.update_data('states', n, self.obs['states'])
+
+            shaped_rewards = self.rewards_shaper(reward)
+            self.experience_buffer.update_data('rewards', n, shaped_rewards)
+            self.experience_buffer.update_data('next_obses', n, obs)
+            self.experience_buffer.update_data('dones', n, done)
+            self.experience_buffer.update_data('amp_obs', n, amp_obs)
+
+            terminated = terminate.float()#infos['terminate'].float()
+            terminated = terminated.unsqueeze(-1)
+            next_vals = self._eval_critic(obs).to(self.device)
+            next_vals *= (1.0 - terminated)
+            self.experience_buffer.update_data('next_values', n, next_vals)
+
+            self.current_rewards += reward
+            self.current_lengths += 1
+            all_done_indices = done.nonzero(as_tuple=False)
+            done_indices = all_done_indices[::self.num_agents]
+
+            self.game_rewards.update(self.current_rewards[done_indices])
+            self.game_lengths.update(self.current_lengths[done_indices])
+            self.algo_observer.process_infos(infos, done_indices)
+
+            not_dones = 1.0 - done.float()
+
+            self.current_rewards = self.current_rewards * not_dones.unsqueeze(1)
+            self.current_lengths = self.current_lengths * not_dones
+        
+            if (self.vec_env.env.viewer and (n == (self.horizon_length - 1))):
+                self._amp_debug(infos)
+        # ____ end for ________
+        mb_fdones = self.experience_buffer.tensor_dict['dones'].float()
+        mb_values = self.experience_buffer.tensor_dict['values']
+        mb_next_values = self.experience_buffer.tensor_dict['next_values']
+
+        mb_rewards = self.experience_buffer.tensor_dict['rewards']
+        mb_amp_obs = self.experience_buffer.tensor_dict['amp_obs']
+        amp_rewards = self._calc_amp_rewards(mb_amp_obs)
+        mb_rewards = self._combine_rewards(mb_rewards, amp_rewards)
+
+        mb_advs = self.discount_values(mb_fdones, mb_values, mb_rewards, mb_next_values)
+        mb_returns = mb_advs + mb_values
+
+        batch_dict = self.experience_buffer.get_transformed_list(a2c_common.swap_and_flatten01, self.tensor_list)
+        batch_dict['returns'] = a2c_common.swap_and_flatten01(mb_returns)
+        batch_dict['played_frames'] = self.batch_size
+
+        for k, v in amp_rewards.items():
+            batch_dict[k] = a2c_common.swap_and_flatten01(v)
+
+        return batch_dict
+
 
     def prepare_dataset(self, batch_dict):
         super().prepare_dataset(batch_dict)
@@ -172,7 +241,8 @@ class AMPAgent(common_agent.CommonAgent):
             if self.is_rnn:
                 batch_dict = self.play_steps_rnn()
             else:
-                batch_dict = self.play_steps() 
+                # batch_dict = self.play_steps() 
+                batch_dict = self.play_steps_ray() 
 
         play_time_end = time.time()
         update_time_start = time.time()

@@ -50,9 +50,9 @@ class CommonRigAMP(CommonRigAMPBase):
 
         super().__init__(config=self.cfg, sim_device=sim_device, graphics_device_id=graphics_device_id, headless=headless)
 
-        motion_file = cfg['env'].get('motion_file')
-        motion_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../asset/" + motion_file)
-        self._load_motion(motion_file_path)
+        # motion_file = cfg['env'].get('motion_file')
+        # motion_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../asset/" + motion_file)
+        # self._load_motion(motion_file_path)
 
         self.num_amp_obs = self._num_amp_obs_steps * NUM_AMP_OBS_PER_STEP
 
@@ -123,7 +123,7 @@ class CommonRigAMP(CommonRigAMPBase):
         self._motion_lib = MotionLib(motion_file=motion_file, 
                                      num_dofs=self.num_dof,
                                      key_body_ids=self._key_body_ids.cpu().numpy(), 
-                                     device=self.device)
+                                     device='cpu')#)self.device)
         return
     
     def reset_idx(self, env_ids):
@@ -246,12 +246,11 @@ class CommonRigAMP(CommonRigAMPBase):
     
     # yoon0-0
     def _set_env_state(self, env_ids, root_pos, root_rot, dof_pos, root_vel, root_ang_vel, dof_vel, collision_test=True):
-        set_envs = []
+        # set_envs = []
         for i, env_id in enumerate(env_ids):
-            q=np.concatenate((root_pos[i].cpu().numpy(), root_rot[i, [3,0,1,2]].cpu().numpy(), dof_pos[i].cpu().numpy()),axis=0) # root_pos, root_rot, dof_pos
-            dq=np.concatenate((root_vel[i].cpu().numpy(), root_ang_vel[i].cpu().numpy(), dof_vel[i].cpu().numpy()),axis=0) # root_pos, root_rot, dof_pos
-            set_envs.append(self.mujoco_envs[env_id].assign_vel.remote(dq=dq,joint_idxs=list(range(0,6))+self.standard_env.ctrl_qvel_idxs))
-            set_envs.append(self.mujoco_envs[env_id].forward.remote(q=q,joint_idxs=list(range(0,7))+self.standard_env.ctrl_qpos_idxs,INCREASE_TICK=True))
+            q=np.concatenate((root_pos[i].detach().cpu().numpy(), root_rot[i, [3,0,1,2]].cpu().numpy(), dof_pos[i].detach().cpu().numpy()),axis=0) # root_pos, root_rot, dof_pos
+            dq=np.concatenate((root_vel[i].detach().cpu().numpy(), root_ang_vel[i].detach().cpu().numpy(), dof_vel[i].detach().cpu().numpy()),axis=0) # root_pos, root_rot, dof_pos            self.mujoco_envs[env_id].assign_vel.remote(dq=dq,joint_idxs=list(range(0,6))+self.standard_env.ctrl_qvel_idxs)
+            self.mujoco_envs[env_id].forward.remote(q=q,joint_idxs=list(range(0,7))+self.standard_env.ctrl_qpos_idxs,INCREASE_TICK=True)
         # q=np.concatenate((np.array(root_pos), np.array(root_rot[:, [3,0,1,2]]), np.array(dof_pos)),axis=-1) # root_pos, root_rot, dof_pos
         # dq=np.concatenate((np.array(root_vel), np.array(root_ang_vel), np.array(dof_vel)),axis=-1) # root_pos, root_rot, dof_pos
         # ray.get(set_envs)
