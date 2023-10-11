@@ -9,6 +9,8 @@ from mujoco_parser import MuJoCoParserClass
 import torch
 from util import *
 from pid import PID_ControllerClass
+from util import sample_xyzs,rpy2r,r2quat
+import matplotlib.pyplot as plt
 
 @ray.remote
 class MuJoCoParserClassRay(MuJoCoParserClass):
@@ -28,7 +30,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
                 out_max = self.ctrl_ranges[:,1],
                 dt = 0.005,
                 ANTIWU  = True)
-        
+        self.env_id = env_id
         # Change floor friction
         self.model.geom('floor').friction = np.array([1,0.01,0]) # default: np.array([1,0.01,0])
         self.model.geom('floor').priority = 1 # >0
@@ -125,7 +127,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
         }
         return result_dict
 
-    def pd_step(self,trgt=None,ctrl_idxs=None,nstep=1,INCREASE_TICK=True):
+    def pd_step(self,trgt=None,ctrl_idxs=None,nstep=1,INCREASE_TICK=True, SAVE_VID=True):
         """
             Step with PD Controller
         """
@@ -138,12 +140,32 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
 
         # actor_root_states = position([0:3]), rotation([3:7]), linear velocity([7:10]), and angular velocity([10:13]).
 
+        # get objects
+        obj_names = [body_name for body_name in self.body_names
+            if body_name is not None and (body_name.startswith("obj_"))]
+        n_obj = len(obj_names)
+
+        # Place objects
+        colors = np.array([plt.cm.gist_rainbow(x) for x in np.linspace(0,1,n_obj)])
+        colors[:,3] = 1.0 # transparent objects
+        obj_poses = np.empty((0, 7))
+        for obj_idx,obj_name in enumerate(obj_names):
+
+            geomadr = self.model.body(obj_name).geomadr[0]
+            self.model.geom(geomadr).rgba = colors[obj_idx] # color
+
+            jntadr  = self.model.body(obj_name).jntadr[0]
+            qposadr = self.model.jnt_qposadr[jntadr]
+            
+            obj_poses = np.append(obj_poses, np.expand_dims(self.data.qpos[qposadr:qposadr+7], axis=0), axis=0)
+
         result_dict = {
             "actor_root_states" : np.concatenate((self.get_p_body('base'), r2quat(self.get_R_body('base'))[[1,2,3,0]], self.get_qvel_joint('base')[0:3], self.get_qvel_joint('base')[3:6]), axis=-1),
             "dof_pos": self.get_qposes(),
             "dof_vel": self.get_qvels(),
             "rigid_body_pos": self.get_ps(),
-            "contact_info": self.get_contact_info()
+            "contact_info": self.get_contact_info(),
+            "obj_poses": obj_poses
             # "root_p": self.get_p_body('base'),
             # "root_R": self.get_R_body('base')
         }
@@ -163,6 +185,32 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
 
     #     self.step(ctrl=torque)
     #     print('hey')
+
+    def throw_objects(self):
+        # Throw cylinder
+        obj_names = [body_name for body_name in self.body_names
+            if body_name is not None and (body_name.startswith("obj_"))]
+        n_obj = len(obj_names)
+
+        # Place objects
+        colors = np.array([plt.cm.gist_rainbow(x) for x in np.linspace(0,1,n_obj)])
+        colors[:,3] = 1.0 # transparent objects
+        for obj_idx,obj_name in enumerate(obj_names):
+            xyzs = sample_xyzs(
+                n_sample=n_obj,x_range=[0.45,1.65],y_range=[-0.38,0.38],z_range=[0.81,0.81],min_dist=0.2,xy_margin=0.05)
+
+            geomadr = self.model.body(obj_name).geomadr[0]
+            self.model.geom(geomadr).rgba = colors[obj_idx] # color
+
+            jntadr  = self.model.body(obj_name).jntadr[0]
+            qposadr = self.model.jnt_qposadr[jntadr]
+            qveladr = self.model.jnt_dofadr[jntadr]
+            # geom_pos = self.data.qpos[qposadr:qposadr+3]
+            # geom_pos[:2] = geom_pos[:2] + 0.005*np.random.randn(2)
+            self.data.qpos[qposadr:qposadr+3] = self.data.qpos[0:3] + xyzs[obj_idx]
+            self.data.qvel[qveladr:qveladr+3] = -xyzs[obj_idx]*5
+
+            # self.data.qpos[qposadr+3:qposadr+7] = r2quat(rpy2r(np.radians([0,0,0])))
 
 
 

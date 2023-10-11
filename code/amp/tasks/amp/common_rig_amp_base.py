@@ -442,7 +442,7 @@ class CommonRigAMPBase(VecTask):
     def _compute_reset(self):
         self.reset_buf[:], self._terminate_buf[:] = compute_humanoid_reset(self.reset_buf, self.progress_buf,
                                                    self._contact_forces, self._contact_body_ids,
-                                                   self._rigid_body_pos, self.max_episode_length,
+                                                   self._rigid_body_pos[:, :19, :], self.max_episode_length,
                                                    self._enable_early_termination, self._termination_height)
         # yoon0-0: compute obstacle reset
 

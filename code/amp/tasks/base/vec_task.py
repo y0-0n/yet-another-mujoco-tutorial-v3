@@ -45,6 +45,8 @@ import numpy as np
 import operator, random
 from copy import deepcopy
 
+from util import animate_motion_with_media
+
 import scipy
 
 import abc
@@ -207,6 +209,11 @@ class VecTask(Env):
 
         self.obs_dict = {}
 
+        self.p_root_list = np.empty((0, 3))
+        self.quat_root_list = np.empty((0, 4))
+        self.q_list = np.empty((0, 35))
+        self.obj_poses_list = np.empty((0, 8, 7))
+
     def set_viewer(self):
         """Create the viewer."""
 
@@ -323,6 +330,13 @@ class VecTask(Env):
                 body_id = self.standard_env.model.body(body_name).id - 1
                 self._contact_forces[i, body_id] = torch.abs(torch.tensor(force))
 
+            # self.p_root_list = np.append(self.p_root_list, self._root_states[:,:3],axis=0)
+            # self.quat_root_list = np.append(self.quat_root_list, self._root_states[:,3:7],axis=0)
+            # self.q_list = np.append(self.q_list, self._dof_pos[:],axis=0)
+            # self.obj_poses_list = np.append(self.obj_poses_list, np.expand_dims(res['obj_poses'], axis=0),axis=0)
+            
+            # animate_motion_with_media(self.standard_env,p_root_list=self.p_root_list[::4],quat_root_list=self.quat_root_list[::4,[3,0,1,2]],q_list=self.q_list[::4],rev_joint_names=self.standard_env.rev_joint_names,obj_poses=self.obj_poses_list[::4],HZ=50,viewer_distance=5.0)
+        
         # step physics and render each frame
         if self.headless == False:
             for i in range(self.control_freq_inv):
