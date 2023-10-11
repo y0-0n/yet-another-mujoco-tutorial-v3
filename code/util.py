@@ -4,6 +4,8 @@ import tkinter as tk
 import shapely as sp # handle polygon
 from shapely import Polygon,LineString,Point # handle polygons
 from scipy.spatial.distance import cdist
+import mediapy as media
+import matplotlib.pyplot as plt
 
 def rot_mtx(deg):
     """
@@ -558,3 +560,65 @@ class MultiSliderClass(object):
             self.gui.quit()
             self.gui.update()
         
+
+def animate_motion_objects_with_media(env,p_root_list,quat_root_list,q_list,rev_joint_names,obj_poses,HZ,
+                              viewer_distance=3.0,PLOT_EVERY=1):
+    """
+        Animate motion and objects with media.show_video
+    """
+    # Initialize viewer
+    L              = q_list.shape[0]
+    joint_idxs_fwd = env.get_idxs_fwd(joint_names=rev_joint_names)
+    env.init_viewer(viewer_title='Common Rig',viewer_width=1200,viewer_height=800,
+                    viewer_hide_menus=True,FONTSCALE_VALUE=200)
+    env.update_viewer(azimuth=152,distance=viewer_distance,elevation=-30,lookat=[0.02,-0.03,0.8])
+    env.reset()
+    img_list = []
+    for tick in range(L):
+        # FK
+        q         = q_list[tick,:] # [35]
+        p_root    = p_root_list[tick,:] # [3]
+        quat_root = quat_root_list[tick,:] # [4] quaternion
+        env.set_p_root(root_name='base',p=p_root)
+        env.set_quat_root(root_name='base',quat=quat_root)
+        env.forward(q=q,joint_idxs=joint_idxs_fwd)
+        # Render
+        env.plot_T(p=np.zeros(3),R=np.eye(3,3),
+                PLOT_AXIS=True,axis_len=0.5,axis_width=0.005)
+        env.plot_T(p=np.array([0,0,0.5]),R=np.eye(3,3),
+                PLOT_AXIS=False,label="tick:[%d]"%(tick))
+        env.plot_geom_T(geom_name='rfoot',axis_len=0.3)
+        env.plot_geom_T(geom_name='lfoot',axis_len=0.3)
+        env.plot_joint_axis(axis_len=0.1,axis_r=0.01)    
+
+        # get objects
+        obj_names = [body_name for body_name in env.body_names
+            if body_name is not None and (body_name.startswith("obj_"))]
+        n_obj = len(obj_names)
+
+        # Place objects
+        colors = np.array([plt.cm.gist_rainbow(x) for x in np.linspace(0,1,n_obj)])
+        colors[:,3] = 1.0 # transparent objects
+        for obj_idx,obj_name in enumerate(obj_names):
+
+            geomadr = env.model.body(obj_name).geomadr[0]
+            env.model.geom(geomadr).rgba = colors[obj_idx] # color
+
+            jntadr  = env.model.body(obj_name).jntadr[0]
+            qposadr = env.model.jnt_qposadr[jntadr]
+            
+            env.data.qpos[qposadr:qposadr+7] = obj_poses[tick, obj_idx, :]
+
+        env.render()
+        # Append image
+        img = env.grab_image()
+        img_list.append(img)
+    # Close MuJoCo viewer
+    env.close_viewer()
+    # Make video
+    media.show_video(img_list,fps=HZ)
+
+    vid_path = '../vid/kin_chain.mp4'
+    
+    create_folder_if_not_exists(vid_path)
+    media.write_video(images=img_list,fps=HZ,path=vid_path)
