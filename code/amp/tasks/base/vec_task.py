@@ -397,9 +397,6 @@ class VecTask(Env):
         # randomize actions
         # if self.dr_randomizations.get('actions', None):
         #     actions = self.dr_randomizations['actions']['noise_lambda'](actions)
-        
-        # apply actions
-        # self.pre_physics_step(actions)
 
         ray_dict = {'model': model.cpu().state_dict(),
             'running_mean_std': running_mean_std.cpu().state_dict(),
@@ -407,23 +404,18 @@ class VecTask(Env):
             }
         
         rollouts = [env.pd_step_loop.remote(
-            ray_dict=ray_dict
+            ray_dict=ray_dict,
+            nstep=4
             # model=model.to('cpu'),running_mean_std=running_mean_std.to('cpu'),value_mean_std=value_mean_std.to('cpu')
             ) for env in self.mujoco_envs]
 
         self._contact_forces = torch.zeros_like(self._contact_forces)
         results = ray.get(rollouts)
 
-        # compute observations, rewards, resets, ...
-        # self.post_physics_step()
-
-        # self._update_hist_amp_obs()
-
         # TODO: randomize observations 
         # if self.dr_randomizations.get('observations', None):
         #     self.obs_buf = self.dr_randomizations['observations']['noise_lambda'](self.obs_buf)
-        # running_mean = torch.zeros_like(running_mean_std.running_mean)
-        # running_var = torch.zeros_like(running_mean_std.running_var)
+
         for i, res in enumerate(results): # workers
             # for j in range(len(res['actor_root_states'])): # horizon
             self.obs_buf[i] = res['obses']
@@ -439,33 +431,11 @@ class VecTask(Env):
             self.sigmas[i] = res['sigmas']
             self._terminate_buf[i] = res['terminates']
             self.prev_obs[i] = res['prev_obs'].to(self.device)
-            # self.prev_amp_obs[i] = res['prev_amp_obs'].to(self.device)
-
-            # update running mean std -> no need to train because updated when training with minibatch
-            # running_mean_std.train()
-            # value_mean_std.train()
-            
-            # mean = res['raw_obses'].mean()
-            # var = res['raw_obses'].var()
-            # running_mean_std.running_mean, running_mean_std.running_var, running_mean_std.count = running_mean_std._update_mean_var_count_from_moments(running_mean_std.running_mean, running_mean_std.running_var, running_mean_std.count, 
-            #                                         mean, var, self.horizon_length)
-            
-            # mean = res['raw_values'].mean()
-            # var = res['raw_values'].var()
-            # value_mean_std.running_mean, value_mean_std.running_var, value_mean_std.count = value_mean_std._update_mean_var_count_from_moments(value_mean_std.running_mean, value_mean_std.running_var, value_mean_std.count, 
-            #                                         mean, var, self.horizon_length)
-
-            # running_mean = running_mean + res['running_mean_std'].running_mean
-            # running_var = running_var + res['running_mean_std'].running_var
 
         # reset device (cannot be detached)
         model.cuda()
         running_mean_std.cuda()
         value_mean_std.cuda()
-        # model.to(self.device)
-        # running_mean_std.to(self.device)
-        # value_mean_std.to(self.device)
-
 
         res_dicts = {
             "neglogpacs": self.neglogpacs,

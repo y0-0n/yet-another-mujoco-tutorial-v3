@@ -16,7 +16,18 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
     """
         MuJoCo Parser class
     """
-    def __init__(self,name='Robot',rel_xml_path=None,USE_MUJOCO_VIEWER=False,VERBOSE=True,device='cpu',env_id=0,horizon_length=64,contact_body_ids=np.array([]),key_body_ids=np.array([]),motion_lib=None,max_episode_length=300):
+    def __init__(self,name='Robot',
+                 rel_xml_path=None,
+                 USE_MUJOCO_VIEWER=False,
+                 VERBOSE=True,
+                 device='cpu',
+                 env_id=0,
+                 horizon_length=64,
+                 contact_body_ids=np.array([]),
+                 key_body_ids=np.array([]),
+                 motion_lib=None, # required
+                 pd_ingredients={}, # required
+                 max_episode_length=300):
         """
             Initialize MuJoCo parser with ray
         """
@@ -24,12 +35,13 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
 
         self.PID = PID_ControllerClass(
                 name = 'PID',dim = self.n_ctrl,
-                k_p = 0.5, k_i = 0.01, k_d = 0.001,
+                k_p = 0.05, k_i = 0.01, k_d = 0.001,
                 out_min = self.ctrl_ranges[:,0],
                 out_max = self.ctrl_ranges[:,1],
-                dt = 0.005,
+                dt = 0.02,
                 ANTIWU  = True)
         self.device = 'cpu'#device
+        self.env_id = env_id
         self.horizon_length = horizon_length
         self._contact_forces = torch.zeros((self.n_body, 3), device=self.device)
         self._contact_body_ids = contact_body_ids
@@ -38,6 +50,8 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
         assert motion_lib is not None
         self._motion_lib = motion_lib
         self.max_episode_length = max_episode_length
+        self.pd_ingredients = pd_ingredients
+
         # Change floor friction
         self.model.geom('floor').friction = np.array([1,0.01,0]) # default: np.array([1,0.01,0])
         self.model.geom('floor').priority = 1 # >0
@@ -158,7 +172,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
         }
         return result_dict
 
-    def pd_step(self,trgt=None,ctrl_idxs=None,nstep=1,INCREASE_TICK=True):
+    def pd_step(self,trgt=None,ctrl_idxs=None,nstep=1,INCREASE_TICK=True, SAVE_VID=True):
         """
             Step with PD Controller
         """
@@ -210,7 +224,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
         # from amp.tasks.amp.common_rig_amp_base import compute_humanoid_reward
         from amp.tasks.common_rig_amp import build_amp_observations
         from amp.tasks.amp.common_rig_amp_base import compute_humanoid_reset2
-        
+
         # yoon0-0 TODO: reward tuning
         # @torch.jit.script
         # def compute_humanoid_reward(cur_root_state, pre_root_state):
@@ -230,21 +244,23 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
         # contact_infos = []
         # contact_forces = torch.zeros((self.horizon_length,)+tuple(self._contact_forces.shape), device=self.device) #[]
 
+        # eval running mean std (updated outside ray worker after rollout)
+        self.running_mean_std.eval()
+        self.value_mean_std.eval()
+
         res_dicts = []
         i = 0 # TODO: i -> 0
+        # first prev obs
+        self.root_states[0] = torch.from_numpy(np.concatenate((self.get_p_body('base'), r2quat(self.get_R_body('base'))[[1,2,3,0]], self.get_qvel_joint('base')[0:3], self.get_qvel_joint('base')[3:6]), axis=-1))
+        self.dof_pos[0] = torch.from_numpy(self.get_qposes())
+        self.dof_vel[0] = torch.from_numpy(self.get_qvels())
+        self.rigid_body_pos[0] = torch.from_numpy(self.get_ps())
+        self.key_body_pos[0] = self.rigid_body_pos[:, self._key_body_ids, :]
+
+        self.prev_obs = self._compute_humanoid_obs()
+        self.prev_amp_obs = build_amp_observations(self.root_states, self.dof_pos, self.dof_vel, self.key_body_pos, False)[0]
+
         for n in range(self.horizon_length):
-            
-            # first prev obs
-            if n == 0:
-                self.root_states[0] = torch.from_numpy(np.concatenate((self.get_p_body('base'), r2quat(self.get_R_body('base'))[[1,2,3,0]], self.get_qvel_joint('base')[0:3], self.get_qvel_joint('base')[3:6]), axis=-1))
-                self.dof_pos[0] = torch.from_numpy(self.get_qposes())
-                self.dof_vel[0] = torch.from_numpy(self.get_qvels())
-                self.rigid_body_pos[0] = torch.from_numpy(self.get_ps())
-                self.key_body_pos[0] = self.rigid_body_pos[:, self._key_body_ids, :]
-
-                self.prev_obs = self._compute_humanoid_obs()
-                self.prev_amp_obs = build_amp_observations(self.root_states, self.dof_pos, self.dof_vel, self.key_body_pos, False)[0]
-
             # reset actor
             # self.obs, done_env_ids = self._env_reset_done()
             if self.reset_flag[0]:
@@ -260,18 +276,16 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
                 # TODO: i
                 q=torch.cat((root_pos[i], root_rot[i, [3,0,1,2]], dof_pos[i]),dim=0) # root_pos, root_rot, dof_pos
                 dq=torch.cat((root_vel[i], root_ang_vel[i], dof_vel[i]),dim=0) # root_pos, root_rot, dof_pos
+                # legacy motion
+                # self.assign_vel(dq=dq,joint_idxs=list(range(0,6))+(self.rev_joint_idxs+5).tolist())
+                # self.forward(q=q,joint_idxs=list(range(0,7))+(self.rev_joint_idxs+6).tolist(),INCREASE_TICK=True)
                 self.assign_vel(dq=dq,joint_idxs=list(range(0,6))+self.ctrl_qvel_idxs)
                 self.forward(q=q,joint_idxs=list(range(0,7))+self.ctrl_qpos_idxs,INCREASE_TICK=True)
                 self.obs = self._compute_humanoid_obs()
 
             if self.USE_MUJOCO_VIEWER:
                 self.render()
-
-            # eval running mean std (updated outside ray worker after rollout)
-            self.running_mean_std.eval()
-            self.value_mean_std.eval()
             
-            self.raw_obses[n] = self.obs.clone() # for updating running mean std 
             processed_obs = self._preproc_obs(self.obs, self.running_mean_std)
             input_dict = {
                 'is_train': False,
@@ -281,12 +295,12 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
             }
             with torch.no_grad():
                 self.res_dict = self._model(input_dict)
-            self.raw_values[n] = self.res_dict['values'].clone() # for updating running mean std 
             self.res_dict['values'] = self.value_mean_std(self.res_dict['values'], True)
-            
+
             # PD control
             qpos = self.get_q(self.ctrl_joint_idxs)
             trgt = self.res_dict['actions']
+            trgt = self.pd_ingredients['pd_offset'] + trgt * self.pd_ingredients['pd_scale']
             self.PID.update(x_trgt=trgt.cpu().numpy()[0],t_curr=self.get_sim_time(),x_curr=qpos,VERBOSE=self.VERBOSE)
             torque = self.PID.out()
             super().step(ctrl=torque,ctrl_idxs=ctrl_idxs,nstep=nstep,INCREASE_TICK=INCREASE_TICK)
@@ -302,7 +316,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
                 self._contact_forces[body_id] = torch.abs(self.force)
 
             # timeout
-            timeout = torch.where(torch.tensor(self.tick >= self.max_episode_length - 1), torch.ones((1,)), torch.zeros((1,)))
+            # timeout = torch.where(torch.tensor(self.tick >= self.max_episode_length - 1), torch.ones((1,)), torch.zeros((1,)))
 
             # reset
             self.rigid_body_pos[0] = torch.from_numpy(self.get_ps())
@@ -314,7 +328,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
             # observation
             self.obs = self._compute_humanoid_obs()
 
-            # amp observation
+            # amp observation TODO: move it outside ray
             self.dof_pos[0] = torch.from_numpy(self.get_qposes())
             self.dof_vel[0] = torch.from_numpy(self.get_qvels())
             self.key_body_pos[0] = self.rigid_body_pos[:, self._key_body_ids, :]
@@ -363,8 +377,6 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
             "prev_amp_obs": self.prev_amp_obs,
             "running_mean_std": self.running_mean_std,
             "value_mean_std": self.value_mean_std,
-            "raw_obses": self.raw_obses,
-            "raw_values": self.raw_values,
         }
         return result_dict# self.obses, self.resets, self.terminates, self.amp_obses, res_dicts, prev_obs, prev_amp_obs
 

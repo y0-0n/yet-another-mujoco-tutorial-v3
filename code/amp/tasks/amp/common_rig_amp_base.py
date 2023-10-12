@@ -203,6 +203,21 @@ class CommonRigAMPBase(VecTask):
         motion_file = self.cfg['env'].get('motion_file')
         motion_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../asset/" + motion_file)
         self._load_motion(motion_file_path)
+
+
+        self.dof_limits_lower = []
+        self.dof_limits_upper = []
+
+        for j in range(self.num_dof):
+            self.dof_limits_lower.append(self.standard_env.joint_ranges[j+1][0])
+            self.dof_limits_upper.append(self.standard_env.joint_ranges[j+1][1])
+
+        self.dof_limits_lower = to_torch(self.dof_limits_lower, device=self.device)
+        self.dof_limits_upper = to_torch(self.dof_limits_upper, device=self.device)
+
+        if (self._pd_control):
+            self._build_pd_action_offset_scale()
+
         # Ray parallelization
         self.mujoco_envs = [MuJoCoParserClassRay.remote(name='Common Rig Ray',
                                                         rel_xml_path=self.asset_file,
@@ -215,6 +230,7 @@ class CommonRigAMPBase(VecTask):
                                                         motion_lib=self._motion_lib,
                                                         max_episode_length=self.max_episode_length,
                                                         horizon_length=self.horizon_length,
+                                                        pd_ingredients={"pd_offset": self._pd_action_offset, "pd_scale": self._pd_action_scale}
                                                         ) for i in range(self.num_envs)]
 
         for i, env in enumerate(self.mujoco_envs):
@@ -235,19 +251,6 @@ class CommonRigAMPBase(VecTask):
         # NOTE: No sensor
         # self.standard_env.model.sensor()
 
-
-        self.dof_limits_lower = []
-        self.dof_limits_upper = []
-
-        for j in range(self.num_dof):
-            self.dof_limits_lower.append(self.standard_env.joint_ranges[j][0])
-            self.dof_limits_upper.append(self.standard_env.joint_ranges[j][1])
-
-        self.dof_limits_lower = to_torch(self.dof_limits_lower, device=self.device)
-        self.dof_limits_upper = to_torch(self.dof_limits_upper, device=self.device)
-
-        if (self._pd_control):
-            self._build_pd_action_offset_scale()
 
 
         # self.PID.reset()
@@ -417,38 +420,28 @@ class CommonRigAMPBase(VecTask):
         return axis_angle
 
     def _build_pd_action_offset_scale(self):
-        num_joints = len(DOF_OFFSETS) - 1
-        
         lim_low = self.dof_limits_lower.cpu().numpy()
         lim_high = self.dof_limits_upper.cpu().numpy()
 
-        for j in range(num_joints):
-            dof_offset = DOF_OFFSETS[j]
-            dof_size = DOF_OFFSETS[j + 1] - DOF_OFFSETS[j]
+        for j in range(self.num_joints):
+            curr_low = lim_low[j]
+            curr_high = lim_high[j]
+            curr_mid = 0.5 * (curr_high + curr_low)
+            
+            # extend the action range to be a bit beyond the joint limits so that the motors
+            # don't lose their strength as they approach the joint limits
+            curr_scale = 0.7 * (curr_high - curr_low)
+            curr_low = curr_mid - curr_scale
+            curr_high = curr_mid + curr_scale
 
-            if (dof_size == 3):
-                lim_low[dof_offset:(dof_offset + dof_size)] = -np.pi
-                lim_high[dof_offset:(dof_offset + dof_size)] = np.pi
-
-            elif (dof_size == 1):
-                curr_low = lim_low[dof_offset]
-                curr_high = lim_high[dof_offset]
-                curr_mid = 0.5 * (curr_high + curr_low)
-                
-                # extend the action range to be a bit beyond the joint limits so that the motors
-                # don't lose their strength as they approach the joint limits
-                curr_scale = 0.7 * (curr_high - curr_low)
-                curr_low = curr_mid - curr_scale
-                curr_high = curr_mid + curr_scale
-
-                lim_low[dof_offset] = curr_low
-                lim_high[dof_offset] =  curr_high
+            lim_low[j] = curr_low
+            lim_high[j] =  curr_high
 
         
         self._pd_action_offset = 0.5 * (lim_high + lim_low)
         self._pd_action_scale = 0.5 * (lim_high - lim_low)
-        self._pd_action_offset = to_torch(self._pd_action_offset, device=self.device)
-        self._pd_action_scale = to_torch(self._pd_action_scale, device=self.device)
+        self._pd_action_offset = to_torch(self._pd_action_offset, device='cpu')
+        self._pd_action_scale = to_torch(self._pd_action_scale, device='cpu')
 
         return
 
