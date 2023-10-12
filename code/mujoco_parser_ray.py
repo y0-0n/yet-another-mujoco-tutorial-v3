@@ -25,10 +25,10 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
 
         self.PID = PID_ControllerClass(
                 name = 'PID',dim = self.n_ctrl,
-                k_p = 0.5, k_i = 0.01, k_d = 0.001,
+                k_p = 0.4, k_i = 0.01, k_d = 0.001,
                 out_min = self.ctrl_ranges[:,0],
                 out_max = self.ctrl_ranges[:,1],
-                dt = 0.005,
+                dt = 0.02,
                 ANTIWU  = True)
         self.env_id = env_id
         # Change floor friction
@@ -125,21 +125,11 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
             # "root_p": self.get_p_body('base'),
             # "root_R": self.get_R_body('base')
         }
+
+
         return result_dict
 
-    def pd_step(self,trgt=None,ctrl_idxs=None,nstep=1,INCREASE_TICK=True, SAVE_VID=True):
-        """
-            Step with PD Controller
-        """
-
-        qpos = self.get_q(self.ctrl_joint_idxs)
-        self.PID.update(x_trgt=trgt,t_curr=self.get_sim_time(),x_curr=qpos,VERBOSE=self.VERBOSE)
-        torque = self.PID.out()
-
-        super().step(ctrl=torque,ctrl_idxs=ctrl_idxs,nstep=nstep,INCREASE_TICK=INCREASE_TICK)
-
-        # actor_root_states = position([0:3]), rotation([3:7]), linear velocity([7:10]), and angular velocity([10:13]).
-
+    def get_objects_poses(self):
         # get objects
         obj_names = [body_name for body_name in self.body_names
             if body_name is not None and (body_name.startswith("obj_"))]
@@ -159,13 +149,30 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
             
             obj_poses = np.append(obj_poses, np.expand_dims(self.data.qpos[qposadr:qposadr+7], axis=0), axis=0)
 
+        return obj_poses
+
+    def pd_step(self,trgt=None,ctrl_idxs=None,nstep=1,INCREASE_TICK=True, SAVE_VID=True):
+        """
+            Step with PD Controller
+        """
+
+        qpos = self.get_q(self.ctrl_joint_idxs)
+        self.PID.update(x_trgt=trgt,t_curr=self.get_sim_time(),x_curr=qpos,VERBOSE=self.VERBOSE)
+        torque = self.PID.out()
+
+        super().step(ctrl=torque,ctrl_idxs=ctrl_idxs,nstep=nstep,INCREASE_TICK=INCREASE_TICK)
+
+        # actor_root_states = position([0:3]), rotation([3:7]), linear velocity([7:10]), and angular velocity([10:13]).
+
+        # obj_poses = self.get_objects_poses()
+
         result_dict = {
             "actor_root_states" : np.concatenate((self.get_p_body('base'), r2quat(self.get_R_body('base'))[[1,2,3,0]], self.get_qvel_joint('base')[0:3], self.get_qvel_joint('base')[3:6]), axis=-1),
             "dof_pos": self.get_qposes(),
             "dof_vel": self.get_qvels(),
             "rigid_body_pos": self.get_ps(),
             "contact_info": self.get_contact_info(),
-            "obj_poses": obj_poses
+            # "obj_poses": obj_poses
             # "root_p": self.get_p_body('base'),
             # "root_R": self.get_R_body('base')
         }

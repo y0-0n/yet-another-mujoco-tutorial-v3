@@ -259,7 +259,7 @@ class CommonAgent(a2c_continuous.A2CAgent):
         
         epinfos = []
         update_list = self.update_list
-
+        # TODO yoon0-0: need to apply ray
         for n in range(self.horizon_length):
             self.obs, done_env_ids = self._env_reset_done()
             self.experience_buffer.update_data('obses', n, self.obs['obs'])

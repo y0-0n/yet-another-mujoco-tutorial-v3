@@ -250,8 +250,11 @@ class CommonRigAMP(CommonRigAMPBase):
         for i, env_id in enumerate(env_ids):
             q=np.concatenate((root_pos[i].cpu().numpy(), root_rot[i, [3,0,1,2]].cpu().numpy(), dof_pos[i].cpu().numpy()),axis=0) # root_pos, root_rot, dof_pos
             dq=np.concatenate((root_vel[i].cpu().numpy(), root_ang_vel[i].cpu().numpy(), dof_vel[i].cpu().numpy()),axis=0) # root_pos, root_rot, dof_pos
-            set_envs.append(self.mujoco_envs[env_id].assign_vel.remote(dq=dq,joint_idxs=list(range(0,6))+(self.standard_env.rev_joint_idxs+5).tolist()))
-            set_envs.append(self.mujoco_envs[env_id].forward.remote(q=q,joint_idxs=list(range(0,7))+(self.standard_env.rev_joint_idxs+6).tolist(),INCREASE_TICK=False))
+            # legacy motion
+            # set_envs.append(self.mujoco_envs[env_id].assign_vel.remote(dq=dq,joint_idxs=list(range(0,6))+(self.standard_env.rev_joint_idxs+5).tolist()))
+            # set_envs.append(self.mujoco_envs[env_id].forward.remote(q=q,joint_idxs=list(range(0,7))+(self.standard_env.rev_joint_idxs+6).tolist(),INCREASE_TICK=False))
+            self.mujoco_envs[env_id].assign_vel.remote(dq=dq,joint_idxs=list(range(0,6))+self.standard_env.ctrl_qvel_idxs)
+            self.mujoco_envs[env_id].forward.remote(q=q,joint_idxs=list(range(0,7))+self.standard_env.ctrl_qpos_idxs,INCREASE_TICK=True)
 
             self.mujoco_envs[env_id].throw_objects.remote()
             # vel_rand = np.random.randn(3*8)

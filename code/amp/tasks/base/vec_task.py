@@ -45,7 +45,7 @@ import numpy as np
 import operator, random
 from copy import deepcopy
 
-from util import animate_motion_with_media
+from util import animate_motion_objects_with_media
 
 import scipy
 
@@ -313,7 +313,7 @@ class VecTask(Env):
 
         rollouts = []
         for trgt, env in zip(pd_tar, self.mujoco_envs):
-            rollouts.append(env.pd_step.remote(trgt=trgt.cpu().numpy()))
+            rollouts.append(env.pd_step.remote(trgt=trgt.cpu().numpy(), nstep=4))
             # env.step.remote(ctrl=action)
 
         self._contact_forces = torch.zeros_like(self._contact_forces)
