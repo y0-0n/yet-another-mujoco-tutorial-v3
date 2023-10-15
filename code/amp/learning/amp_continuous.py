@@ -89,9 +89,6 @@ class AMPAgent(common_agent.CommonAgent):
 
         epinfos = []
         update_list = self.update_list
-        # self.vec_env.env.PID.reset()
-        for env in self.vec_env.env.mujoco_envs:
-            env.reset_PID.remote()
         for n in range(self.horizon_length):
             self.obs, done_env_ids = self._env_reset_done()
             self.experience_buffer.update_data('obses', n, self.obs['obs'])

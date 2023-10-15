@@ -201,7 +201,7 @@ class CommonRigAMPBase(VecTask):
         self.num_joints = self.standard_env.n_rev_joint # NOTE: Different from Isaac num_joints
 
         motion_file = self.cfg['env'].get('motion_file')
-        motion_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../asset/" + motion_file)
+        motion_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../../asset/" + motion_file)
         self._load_motion(motion_file_path)
 
 
@@ -430,18 +430,19 @@ class CommonRigAMPBase(VecTask):
             
             # extend the action range to be a bit beyond the joint limits so that the motors
             # don't lose their strength as they approach the joint limits
-            curr_scale = 0.7 * (curr_high - curr_low)
+            curr_scale = 0.5 * (curr_high - curr_low)
             curr_low = curr_mid - curr_scale
             curr_high = curr_mid + curr_scale
 
             lim_low[j] = curr_low
             lim_high[j] =  curr_high
 
-        
+        i = [x-7 for x in self.standard_env.get_idxs_fwd(self.standard_env.ctrl_joint_names)] # TODO: pd joint idxs
+
         self._pd_action_offset = 0.5 * (lim_high + lim_low)
         self._pd_action_scale = 0.5 * (lim_high - lim_low)
-        self._pd_action_offset = to_torch(self._pd_action_offset, device='cpu')
-        self._pd_action_scale = to_torch(self._pd_action_scale, device='cpu')
+        self._pd_action_offset = to_torch(self._pd_action_offset, device='cpu')[i]
+        self._pd_action_scale = to_torch(self._pd_action_scale, device='cpu')[i]
 
         return
 
