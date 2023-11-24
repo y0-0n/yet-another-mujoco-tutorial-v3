@@ -123,7 +123,7 @@ class CommonRigAMP(CommonRigAMPBase):
         self._motion_lib = MotionLib(motion_file=motion_file, 
                                      num_dofs=self.num_dof,
                                      key_body_ids=self._key_body_ids.cpu().numpy(), 
-                                     device='cpu')#)self.device)
+                                     device='cpu')
         return
     
     def reset_idx(self, env_ids):
@@ -182,7 +182,7 @@ class CommonRigAMP(CommonRigAMPBase):
         root_pos, root_rot, dof_pos, root_vel, root_ang_vel, dof_vel, key_pos \
                = self._motion_lib.get_motion_state(motion_ids, motion_times)
         # TODO l5vd5: to prevent from penetration
-        root_pos[:,2] += 0.05
+        # root_pos[:,2] += 0.05
         self._set_env_state(env_ids=env_ids, 
                             root_pos=root_pos, 
                             root_rot=root_rot, 

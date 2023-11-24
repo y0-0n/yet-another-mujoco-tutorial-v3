@@ -15,7 +15,7 @@
     </default>
 
     <!-- dt = 0.02 -> 50hz -->
-    <option timestep="0.005" iterations="50" tolerance="1e-10" solver="Newton" jacobian="dense" gravity="0 0 -9.81" cone="pyramidal"/> 
+    <option timestep="0.005" iterations="50" tolerance="1e-10" solver="Newton" jacobian="dense" cone="pyramidal"/> 
     <size nconmax="50" njmax="200" nstack="10000"/>
 
     <visual>

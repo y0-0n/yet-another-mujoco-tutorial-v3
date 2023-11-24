@@ -1,0 +1,7 @@
+ray
+hydra-core
+omegaconf
+rl-games==1.1.4
+mujoco==2.3.6
+mujoco-python-viewer
+opencv-python

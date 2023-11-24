@@ -84,78 +84,20 @@ class AMPAgent(common_agent.CommonAgent):
             self._amp_input_mean_std.load_state_dict(weights['amp_input_mean_std'])
         return
 
-    def play_steps(self):
-        self.set_eval()
+    # yoon0-0 : without action, pass model to mujoco env
+    def env_step(self):
+        obs, rewards, dones, infos = self.vec_env.step(self.model, self.running_mean_std, self.value_mean_std) # vec_task.py
+        self.is_tensor_obses = True # TODO
+        if self.is_tensor_obses:
+            if self.value_size == 1:
+                # rewards = rewards.unsqueeze(1)
+                rewards = rewards.unsqueeze(2)
+            return self.obs_to_tensors(obs), rewards.to(self.ppo_device), dones.to(self.ppo_device), infos
+        else:
+            if self.value_size == 1:
+                rewards = np.expand_dims(rewards, axis=1)
+            return self.obs_to_tensors(obs), torch.from_numpy(rewards).to(self.ppo_device).float(), torch.from_numpy(dones).to(self.ppo_device), infos
 
-        epinfos = []
-        update_list = self.update_list
-        for n in range(self.horizon_length):
-            self.obs, done_env_ids = self._env_reset_done()
-            self.experience_buffer.update_data('obses', n, self.obs['obs'])
-
-            if self.use_action_masks:
-                masks = self.vec_env.get_action_masks()
-                res_dict = self.get_masked_action_values(self.obs, masks)
-            else:
-                res_dict = self.get_action_values(self.obs)
-
-            for k in update_list:
-                self.experience_buffer.update_data(k, n, res_dict[k]) 
-
-            if self.has_central_value:
-                self.experience_buffer.update_data('states', n, self.obs['states'])
-
-            self.obs, rewards, self.dones, infos = self.env_step(res_dict['actions'])
-            shaped_rewards = self.rewards_shaper(rewards)
-            self.experience_buffer.update_data('rewards', n, shaped_rewards)
-            self.experience_buffer.update_data('next_obses', n, self.obs['obs'])
-            self.experience_buffer.update_data('dones', n, self.dones)
-            self.experience_buffer.update_data('amp_obs', n, infos['amp_obs'])
-
-            terminated = infos['terminate'].float()
-            terminated = terminated.unsqueeze(-1)
-            next_vals = self._eval_critic(self.obs)
-            next_vals *= (1.0 - terminated)
-            self.experience_buffer.update_data('next_values', n, next_vals)
-
-            self.current_rewards += rewards
-            self.current_lengths += 1
-            all_done_indices = self.dones.nonzero(as_tuple=False)
-            done_indices = all_done_indices[::self.num_agents]
-  
-            self.game_rewards.update(self.current_rewards[done_indices])
-            self.game_lengths.update(self.current_lengths[done_indices])
-            self.algo_observer.process_infos(infos, done_indices)
-
-            not_dones = 1.0 - self.dones.float()
-
-            self.current_rewards = self.current_rewards * not_dones.unsqueeze(1)
-            self.current_lengths = self.current_lengths * not_dones
-        
-            if (self.vec_env.env.viewer and (n == (self.horizon_length - 1))):
-                self._amp_debug(infos)
-
-        mb_fdones = self.experience_buffer.tensor_dict['dones'].float()
-        mb_values = self.experience_buffer.tensor_dict['values']
-        mb_next_values = self.experience_buffer.tensor_dict['next_values']
-
-        mb_rewards = self.experience_buffer.tensor_dict['rewards']
-        mb_amp_obs = self.experience_buffer.tensor_dict['amp_obs']
-        amp_rewards = self._calc_amp_rewards(mb_amp_obs)
-        mb_rewards = self._combine_rewards(mb_rewards, amp_rewards)
-
-        mb_advs = self.discount_values(mb_fdones, mb_values, mb_rewards, mb_next_values)
-        mb_returns = mb_advs + mb_values
-
-        batch_dict = self.experience_buffer.get_transformed_list(a2c_common.swap_and_flatten01, self.tensor_list)
-        batch_dict['returns'] = a2c_common.swap_and_flatten01(mb_returns)
-        batch_dict['played_frames'] = self.batch_size
-
-        for k, v in amp_rewards.items():
-            batch_dict[k] = a2c_common.swap_and_flatten01(v)
-
-        return batch_dict
-    
     def play_steps_ray(self):
         self.set_eval()
 
@@ -164,17 +106,16 @@ class AMPAgent(common_agent.CommonAgent):
         # ____ start for ________
         self.obs, rewards, self.dones, infos = self.env_step()
 
-        for n, (obs, reward, done, amp_obs, terminate, prev_obs) in enumerate(zip(self.obs['obs'], rewards, self.dones, infos['amp_obs'], infos['terminate'], infos['prev_obs'])):
-            
-            self.experience_buffer.update_data('obses', n, torch.cat((prev_obs.unsqueeze(dim=0), obs[1:,:])))
+        for n, (obs, reward, done, amp_obs, terminate, prev_obs) in enumerate(zip(self.obs['obs'].transpose(0,1), rewards.transpose(0,1), self.dones.transpose(0,1), infos['amp_obs'].transpose(0,1), infos['terminate'].transpose(0,1), infos['prev_obses'].transpose(0,1))):
             
             for k in update_list:
-                self.experience_buffer.update_data(k, n, infos['res_dicts'][k][n])
+                self.experience_buffer.update_data(k, n, infos['res_dicts'][k].transpose(0,1)[n])
 
             # if self.has_central_value:
             #     self.experience_buffer.update_data('states', n, self.obs['states'])
 
             shaped_rewards = self.rewards_shaper(reward)
+            self.experience_buffer.update_data('obses', n, prev_obs)
             self.experience_buffer.update_data('rewards', n, shaped_rewards)
             self.experience_buffer.update_data('next_obses', n, obs)
             self.experience_buffer.update_data('dones', n, done)
@@ -238,7 +179,6 @@ class AMPAgent(common_agent.CommonAgent):
             if self.is_rnn:
                 batch_dict = self.play_steps_rnn()
             else:
-                # batch_dict = self.play_steps() 
                 batch_dict = self.play_steps_ray() 
 
         play_time_end = time.time()

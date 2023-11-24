@@ -102,13 +102,6 @@ def launch_rlg_hydra(cfg: DictConfig):
         'env_creator': lambda **kwargs: create_rlgpu_env(**kwargs),
     })
 
-    # vecenv.register('mujoco_amp',
-    #                 lambda config_name, num_actors, **kwargs: RayVecEnv(config_name, num_actors, **kwargs))
-    # env_configurations.register('mujoco_amp', {
-    #     'vecenv_type': 'RAY',
-    #     'env_creator': lambda **kwargs: create_rlgpu_env(**kwargs),
-    # })
-
     # register new AMP network builder and agent
     def build_runner(algo_observer):
         runner = Runner(algo_observer)

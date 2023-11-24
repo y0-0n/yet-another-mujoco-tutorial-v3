@@ -75,7 +75,7 @@ class Env(ABC):
                 print("GPU Pipeline can only be used with GPU simulation. Forcing CPU Pipeline.")
                 config["sim"]["use_gpu_pipeline"] = False
 
-        self.rl_device = config.get("rl_device", "cuda:0")
+        self.rl_device = config.get("rl_device", "cpu")
 
         # Rendering
         # if training in a headless mode
@@ -266,9 +266,9 @@ class VecTask(Env):
             (self.num_envs, self.horizon_length, self.num_obs), device=self.device, dtype=torch.float)
         self.amp_obs_buf = torch.zeros(
             (self.num_envs, self.horizon_length, self.num_obs*2), device=self.device, dtype=torch.float)
-        self.prev_obs = torch.zeros(
-            (self.num_envs, self.num_obs), device=self.device, dtype=torch.float)
-        self.prev_amp_obs = torch.zeros(
+        self.prev_obses = torch.zeros(
+            (self.num_envs, self.horizon_length, self.num_obs), device=self.device, dtype=torch.float)
+        self.prev_amp_obses = torch.zeros(
             (self.num_envs, self.num_obs), device=self.device, dtype=torch.float)
         self.soccer_ball_obs_buf = torch.zeros(
             (self.num_envs, self.horizon_length, 13), device=self.device, dtype=torch.float)
@@ -406,7 +406,6 @@ class VecTask(Env):
         rollouts = [env.pd_step_loop.remote(
             ray_dict=ray_dict,
             nstep=4
-            # model=model.to('cpu'),running_mean_std=running_mean_std.to('cpu'),value_mean_std=value_mean_std.to('cpu')
             ) for env in self.mujoco_envs]
 
         self._contact_forces = torch.zeros_like(self._contact_forces)
@@ -417,12 +416,11 @@ class VecTask(Env):
         #     self.obs_buf = self.dr_randomizations['observations']['noise_lambda'](self.obs_buf)
 
         for i, res in enumerate(results): # workers
-            # for j in range(len(res['actor_root_states'])): # horizon
             self.obs_buf[i] = res['obses']
             self.reset_buf[i] = res['resets']
-            prev_amp_obs = torch.cat((res['prev_amp_obs'].unsqueeze(dim=0), res['amp_obses'][1:,:]))
+            prev_amp_obses = res['prev_amp_obses']
             cur_amp_obs = res['amp_obses']
-            self.amp_obs_buf[i] = torch.cat((cur_amp_obs, prev_amp_obs), dim=1)
+            self.amp_obs_buf[i] = torch.cat((cur_amp_obs, prev_amp_obses), dim=1) # TODO: yoon0-0
             # self.rew_buf[i] = res['rewards'] # TODO
             self.neglogpacs[i] = res['neglogpacs']
             self.values[i] = res['values']
@@ -430,13 +428,15 @@ class VecTask(Env):
             self.mus[i] = res['mus']
             self.sigmas[i] = res['sigmas']
             self._terminate_buf[i] = res['terminates']
-            self.prev_obs[i] = res['prev_obs'].to(self.device)
+            self.prev_obses[i] = res['prev_obses'].to(self.device) # yoon0-0
 
         # reset device (cannot be detached)
+        # TODO: if using cpu, comment out this lines.
         model.cuda()
         running_mean_std.cuda()
         value_mean_std.cuda()
 
+        # TODO yoon0-0: need to check
         res_dicts = {
             "neglogpacs": self.neglogpacs,
             "values": self.values.unsqueeze(dim=-1),
@@ -448,12 +448,18 @@ class VecTask(Env):
         self.extras["terminate"] = self._terminate_buf
         self.extras["res_dicts"] = res_dicts
         self.extras["amp_obs"] = self.amp_obs_buf
-        self.extras["prev_obs"] = self.prev_obs
+        self.extras["prev_obses"] = self.prev_obses
         # self.extras["prev_amp_obs"] = self.prev_amp_obs
 
         # asymmetric actor-critic
         if self.num_states > 0:
             self.obs_dict["states"] = self.get_state()
+
+        # TODO yoon0-0: need to check
+        # self.obs_dict['obs'] = self.obs_dict['obs'].transpose(0, 1)
+        # self.rew_buf = self.rew_buf.transpose(0, 1)
+        # self.reset_buf = self.reset_buf.transpose(0, 1)
+        # self.extras["terminate"] = self.extras["terminate"].transpose(0, 1)
 
         return self.obs_dict, self.rew_buf.to(self.rl_device), self.reset_buf.to(self.rl_device), self.extras
 
