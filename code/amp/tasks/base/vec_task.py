@@ -405,7 +405,7 @@ class VecTask(Env):
         
         rollouts = [env.pd_step_loop.remote(
             ray_dict=ray_dict,
-            nstep=4
+            nstep=1
             ) for env in self.mujoco_envs]
 
         self._contact_forces = torch.zeros_like(self._contact_forces)

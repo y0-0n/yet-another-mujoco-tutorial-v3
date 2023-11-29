@@ -11,10 +11,11 @@
             "args": [
                 "num_envs=2",
                 // "test=True",
-                "headless=False",
+                // "headless=False",
+                "train.params.config.minibatch_size=4096",
                 // "checkpoint=runs/CommonRigAMP/nn/CommonRigAMP_1100.pth"
             ],
-            "program": "code/main_amp.py",
+            "program": "/home/yoonbyeong/Dev/yet-another-mujoco-tutorial-v3/code/main_amp.py",
             "console": "integratedTerminal",
             "justMyCode": false
         },
@@ -22,12 +23,14 @@
             "name": "Python: Test",
             "type": "python",
             "request": "launch",
-            "program": "code/main_amp.py",
+            "program": "/home/yoonbyeong/Dev/yet-another-mujoco-tutorial-v3/code/main_amp.py",
             "args": [
-                "num_envs=2",
-                "test=True",
+                "num_envs=1",
+                // "test=True",
                 "headless=False",
-                "checkpoint=runs/CommonRigAMP/nn/CommonRigAMP_1100.pth"
+                "train.params.config.minibatch_size=2048",
+                // "checkpoint=runs/CommonRigAMP/nn/CommonRigAMP.pth"
+                // "checkpoint=runs/First Success/nn/CommonRigAMP_3600.pth",
             ],
             "console": "integratedTerminal",
             "justMyCode": false

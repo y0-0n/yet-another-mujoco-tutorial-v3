@@ -1,0 +1,1 @@
+python code/main_amp.py num_envs=1 headless=False train.params.config.minibatch_size=2048 checkpoint=runs/CommonRigAMP/nn/CommonRigAMP.pth
