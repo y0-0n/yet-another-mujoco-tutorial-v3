@@ -89,9 +89,6 @@ class AMPAgent(common_agent.CommonAgent):
 
         epinfos = []
         update_list = self.update_list
-        # self.vec_env.env.PID.reset()
-        for env in self.vec_env.env.mujoco_envs:
-            env.reset_PID.remote()
         for n in range(self.horizon_length):
             self.obs, done_env_ids = self._env_reset_done() # done env만 reset
             self.experience_buffer.update_data('obses', n, self.obs['obs'])
@@ -103,7 +100,7 @@ class AMPAgent(common_agent.CommonAgent):
                 res_dict = self.get_action_values(self.obs)
 
             for k in update_list:
-                self.experience_buffer.update_data(k, n, res_dict[k]) 
+                self.experience_buffer.update_data(k, n, res_dict[k])
 
             if self.has_central_value:
                 self.experience_buffer.update_data('states', n, self.obs['states'])
