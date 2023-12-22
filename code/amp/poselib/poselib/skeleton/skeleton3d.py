@@ -626,11 +626,6 @@ class SkeletonState(Serializable):
     def _to_state_vector(rot, rt):
         state_shape = rot.shape[:-2]
         vr = rot.reshape(*(state_shape + (-1,)))
-        #print(123123)
-        #print(state_shape)
-        #print(vr)
-        #print(*state_shape)
-        #print(rt.shape[-1:])
         vt = rt.broadcast_to(*state_shape + rt.shape[-1:]).reshape(
             *(state_shape + (-1,))
         )

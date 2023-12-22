@@ -37,7 +37,7 @@ from ..poselib.poselib.core.rotation3d import *
 
 # TODO l5vd5
 # from tasks.amp.humanoid_amp_base import DOF_BODY_IDS, DOF_OFFSETS
-from amp.tasks.amp.common_rig_amp_base import DOF_BODY_IDS, DOF_OFFSETS
+# from amp.tasks.amp.common_rig_amp_base import DOF_BODY_IDS, DOF_OFFSETS
 from .torch_utils import to_torch
 from .torch_jit_utils import *
 # from tasks.amp.common_rig_amp_base import DOF_BODY_IDS, DOF_OFFSETS
@@ -304,7 +304,7 @@ class MotionLib():
         phase = time / len
         phase = np.clip(phase, 0.0, 1.0)
 
-        frame_idx0 = (phase * (num_frames - 1)).astype(np.int)
+        frame_idx0 = (phase * (num_frames - 1)).astype(np.int32)
         frame_idx1 = np.minimum(frame_idx0 + 1, num_frames - 1)
         blend = (time - frame_idx0 * dt) / dt
 

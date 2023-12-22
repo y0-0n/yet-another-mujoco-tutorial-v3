@@ -172,6 +172,19 @@ def get_euler_xyz(q):
 
     return roll % (2*np.pi), pitch % (2*np.pi), yaw % (2*np.pi)
 
+def get_euler_xyz2(q):
+    qx, qy, qz, qw = 0, 1, 2, 3
+    w = q[:, qw]
+    x = q[:, qx]
+    y = q[:, qy]
+    z = q[:, qz]
+    # XYZ
+    # Calculate Euler angles
+    roll_x = torch.atan2(2*(x*w - y*z), w*w - x*x - y*y + z*z)
+    pitch_y = torch.asin(2*(x*z + w*y))
+    yaw_z = torch.atan2(2*(z*w - x*y), w*w + x*x - y*y - z*z)
+    return roll_x, pitch_y, yaw_z
+
 
 @torch.jit.script
 def quat_from_euler_xyz(roll, pitch, yaw):
@@ -195,6 +208,23 @@ def quat_from_euler_xyz(roll, pitch, yaw):
     # qx = cy * sr * cp + sy * cr * sp
     # qy = cy * cr * sp - sy * sr * cp
     # qz = sy * cr * cp + cy * sr * sp
+
+    return torch.stack([qx, qy, qz, qw], dim=-1)
+
+def quat_from_euler_xyz2(roll, pitch, yaw):
+    cy = torch.cos(yaw * 0.5)
+    sy = torch.sin(yaw * 0.5)
+    cr = torch.cos(roll * 0.5)
+    sr = torch.sin(roll * 0.5)
+    cp = torch.cos(pitch * 0.5)
+    sp = torch.sin(pitch * 0.5)
+
+    # Rotation: axis order
+    # ZYX
+    qw = cy * cr * cp + sy * sr * sp
+    qx = cy * sr * cp - sy * cr * sp
+    qy = sy * cr * cp + cy * sr * sp
+    qz = cy * cr * sp - sy * sr * cp
 
     return torch.stack([qx, qy, qz, qw], dim=-1)
 

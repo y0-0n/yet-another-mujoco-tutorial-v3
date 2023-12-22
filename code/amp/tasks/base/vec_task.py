@@ -313,7 +313,7 @@ class VecTask(Env):
 
         rollouts = []
         for trgt, env in zip(pd_tar, self.mujoco_envs):
-            rollouts.append(env.pd_step.remote(trgt=trgt.cpu().numpy(), nstep=4))
+            rollouts.append(env.pd_step.remote(trgt=trgt.cpu().numpy(),nstep=1))
             # env.step.remote(ctrl=action)
 
         self._contact_forces = torch.zeros_like(self._contact_forces)

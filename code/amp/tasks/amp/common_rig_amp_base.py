@@ -18,8 +18,8 @@ DOF_BODY_IDS    = [1, 2, 4, 5, 6,
                     ]    # body idx which have DOF, not include root
 DOF_OFFSETS     = [0, 3, 4, 7, 8, 11,
                    14, 15, 18, 21,
-                   24, 25, 28,
-                   31, 32, 35]  # joint number offset of each body
+                   22, 25, 28,
+                   29, 32, 35]  # joint number offset of each body
 NUM_OBS = 1 + 6 + 3 + 3 + 65 + 35 + 12 # [(root_h(z-height):1, root_rot:6, root_vel:3, root_ang_vel:3, dof_pos, dof_vel, key_body_pos]
 NUM_ACTIONS = 35    #from mjcf file (atlas_v5.xml actuator)
 NUM_ACTORS_PER_ENVS = 1 # Added from JTM, 2 actors per envs
@@ -411,18 +411,19 @@ class CommonRigAMPBase(VecTask):
             
             # extend the action range to be a bit beyond the joint limits so that the motors
             # don't lose their strength as they approach the joint limits
-            curr_scale = 0.7 * (curr_high - curr_low)
+            curr_scale = 0.5 * (curr_high - curr_low)
             curr_low = curr_mid - curr_scale
             curr_high = curr_mid + curr_scale
 
             lim_low[j] = curr_low
             lim_high[j] =  curr_high
 
-        
+        i = [x-7 for x in self.standard_env.get_idxs_fwd(self.standard_env.ctrl_joint_names)] # TODO: pd joint idxs
+
         self._pd_action_offset = 0.5 * (lim_high + lim_low)
         self._pd_action_scale = 0.5 * (lim_high - lim_low)
-        self._pd_action_offset = to_torch(self._pd_action_offset, device=self.device)
-        self._pd_action_scale = to_torch(self._pd_action_scale, device=self.device)
+        self._pd_action_offset = to_torch(self._pd_action_offset, device=self.device)[i]
+        self._pd_action_scale = to_torch(self._pd_action_scale, device=self.device)[i]
 
         return
 
@@ -497,15 +498,6 @@ class CommonRigAMPBase(VecTask):
         obs = compute_humanoid_observations(root_states, dof_pos, dof_vel,
                                         key_body_pos, self._local_root_obs)
             
-        
-        ## TODO: yoon0_0
-        
-        # obs = compute_humanoid_observations(root_states, dof_pos, dof_vel,
-        #                                     key_body_pos, self._local_root_obs)
-        # if env_ids is None:
-        #     obs = torch.zeros((self.num_envs, NUM_OBS), device=self.device)
-        # else:
-        #     obs = torch.zeros((len(env_ids), NUM_OBS), device=self.device)
         return obs
 
     def _reset_actors(self, env_ids):
@@ -636,8 +628,8 @@ def dof_to_obs(pose):
     dof_obs_size = 65
     dof_offsets = [0, 3, 4, 7, 8, 11,
                    14, 15, 18, 21,
-                   24, 25, 28,
-                   31, 32, 35]  # joint number offset of each body
+                   22, 25, 28,
+                   29, 32, 35]  # joint number offset of each body
     num_joints = len(dof_offsets) - 1
 
     dof_obs_shape = pose.shape[:-1] + (dof_obs_size,)
