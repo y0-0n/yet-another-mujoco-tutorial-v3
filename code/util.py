@@ -70,6 +70,20 @@ def rpy2r(rpy_rad):
     assert R.shape == (3, 3)
     return R
 
+def rpy2R(r0, order=[0,1,2]):
+    c1 = np.math.cos(r0[0]); c2 = np.math.cos(r0[1]); c3 = np.math.cos(r0[2])
+    s1 = np.math.sin(r0[0]); s2 = np.math.sin(r0[1]); s3 = np.math.sin(r0[2])
+
+    a1 = np.array([[1,0,0],[0,c1,-s1],[0,s1,c1]])
+    a2 = np.array([[c2,0,s2],[0,1,0],[-s2,0,c2]])
+    a3 = np.array([[c3,-s3,0],[s3,c3,0],[0,0,1]])
+
+    a_list = [a1,a2,a3]
+    a = np.matmul(np.matmul(a_list[order[0]],a_list[order[1]]),a_list[order[2]])
+
+    assert a.shape == (3,3)
+    return a
+
 def r2rpy(R,unit='rad'):
     """
         Rotation matrix to roll,pitch,yaw in radian
