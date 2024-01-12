@@ -51,6 +51,14 @@ class KinematicChainClass(object):
         for (joint_name,q) in zip(joint_names,qs):
             self.chain.nodes[self.get_joint_idx(joint_name)]['q'] = q
 
+    def set_R_offset(self,joint_names,Rs):
+        """ 
+            Set joint values
+        """
+        for (joint_name,R) in zip(joint_names,Rs):
+            self.chain.nodes[self.get_joint_idx(joint_name)]['R_offset'] = R
+
+
     def add_joint(self,name='',a=np.array([0,0,0]),
                   p=np.zeros(3),R=np.eye(3),
                   p_offset=np.zeros(3),R_offset=np.eye(3),
