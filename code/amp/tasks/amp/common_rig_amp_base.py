@@ -240,8 +240,8 @@ class CommonRigAMPBase(VecTask):
         self.dof_limits_upper = []
 
         for j in range(self.num_dof):
-                self.dof_limits_lower.append(self.standard_env.joint_ranges[j+1][0])
-                self.dof_limits_upper.append(self.standard_env.joint_ranges[j+1][1])
+            self.dof_limits_lower.append(self.standard_env.joint_ranges[j][0])
+            self.dof_limits_upper.append(self.standard_env.joint_ranges[j][1])
 
         self.dof_limits_lower = to_torch(self.dof_limits_lower, device=self.device)
         self.dof_limits_upper = to_torch(self.dof_limits_upper, device=self.device)

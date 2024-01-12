@@ -184,7 +184,7 @@ class CommonRigAMP(CommonRigAMPBase):
         root_pos, root_rot, dof_pos, root_vel, root_ang_vel, dof_vel, key_pos \
                = self._motion_lib.get_motion_state(motion_ids, motion_times)
         # TODO l5vd5: to prevent from penetration
-        # root_pos[:,2] += 0.05
+        root_pos[:,2] += 0.05
         self._set_env_state(env_ids=env_ids, 
                             root_pos=root_pos, 
                             root_rot=root_rot, 
@@ -248,26 +248,17 @@ class CommonRigAMP(CommonRigAMPBase):
     
     # yoon0-0
     def _set_env_state(self, env_ids, root_pos, root_rot, dof_pos, root_vel, root_ang_vel, dof_vel, collision_test=True):
-        set_envs = []
+        # set_envs = []
         for i, env_id in enumerate(env_ids):
-            q=np.concatenate((root_pos[i].cpu().numpy(), root_rot[i, [3,0,1,2]].cpu().numpy(), dof_pos[i].cpu().numpy()),axis=0) # root_pos, root_rot, dof_pos
-            dq=np.concatenate((root_vel[i].cpu().numpy(), root_ang_vel[i].cpu().numpy(), dof_vel[i].cpu().numpy()),axis=0) # root_pos, root_rot, dof_pos
-            # legacy motion
-            # set_envs.append(self.mujoco_envs[env_id].assign_vel.remote(dq=dq,joint_idxs=list(range(0,6))+(self.standard_env.rev_joint_idxs+5).tolist()))
-            # set_envs.append(self.mujoco_envs[env_id].forward.remote(q=q,joint_idxs=list(range(0,7))+(self.standard_env.rev_joint_idxs+6).tolist(),INCREASE_TICK=False))
+            q=np.concatenate((root_pos[i].detach().cpu().numpy(), root_rot[i, [3,0,1,2]].cpu().numpy(), dof_pos[i].detach().cpu().numpy()),axis=0) # root_pos, root_rot, dof_pos
+            dq=np.concatenate((root_vel[i].detach().cpu().numpy(), root_ang_vel[i].detach().cpu().numpy(), dof_vel[i].detach().cpu().numpy()),axis=0) # root_pos, root_rot, dof_pos
             self.mujoco_envs[env_id].assign_vel.remote(dq=dq,joint_idxs=list(range(0,6))+self.standard_env.ctrl_qvel_idxs)
             self.mujoco_envs[env_id].forward.remote(q=q,joint_idxs=list(range(0,7))+self.standard_env.ctrl_qpos_idxs,INCREASE_TICK=True)
-
-            self.mujoco_envs[env_id].throw_objects.remote()
-            # vel_rand = np.random.randn(3*8)
-            # pos_rand = np.random.randn(3*8)
-            # set_envs.append(self.mujoco_envs[env_id].assign_vel.remote(dq=dq,joint_idxs=list(range(41,89)))
-            # set_envs.append(self.mujoco_envs[env_id].forward.remote(q=q,joint_idxs=list(range(0,7))+(self.standard_env.rev_joint_idxs+6).tolist(),INCREASE_TICK=False))
         # q=np.concatenate((np.array(root_pos), np.array(root_rot[:, [3,0,1,2]]), np.array(dof_pos)),axis=-1) # root_pos, root_rot, dof_pos
         # dq=np.concatenate((np.array(root_vel), np.array(root_ang_vel), np.array(dof_vel)),axis=-1) # root_pos, root_rot, dof_pos
         # ray.get(set_envs)
         # for i in env_ids:
-        #     self.mujoco_envs[i].assign_vel.remote(dq=dq,joint_idxs=list(range(0,6))+(self.standard_env.rev_joint_idxs+6).tolist())
+            
         #     self.mujoco_envs[i].forward.remote(q=q,joint_idxs=list(range(0,7))+(self.standard_env.rev_joint_idxs+6).tolist(),INCREASE_TICK=False)
         return
     

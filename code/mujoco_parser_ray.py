@@ -9,9 +9,8 @@ from mujoco_parser import MuJoCoParserClass
 import torch
 from util import *
 from pid import PID_ControllerClass
-from util import sample_xyzs,rpy2r,r2quat
-import matplotlib.pyplot as plt
-
+import sys
+import gc
 @ray.remote
 class MuJoCoParserClassRay(MuJoCoParserClass):
     """
@@ -30,7 +29,15 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
                 out_max = self.ctrl_ranges[:,1],
                 dt = 0.02,
                 ANTIWU  = True)
-        self.env_id = env_id
+        self.device = 'cpu'#device
+        self.horizon_length = horizon_length
+        self._contact_forces = torch.zeros((self.n_body, 3), device=self.device)
+        self._contact_body_ids = contact_body_ids
+        self._key_body_ids = key_body_ids
+        self.reset_flag = torch.ones((1,))
+        assert motion_lib is not None
+        self._motion_lib = motion_lib
+        self.max_episode_length = max_episode_length
         # Change floor friction
         self.model.geom('floor').friction = np.array([1,0.01,0]) # default: np.array([1,0.01,0])
         self.model.geom('floor').priority = 1 # >0
@@ -185,9 +192,6 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
         super().step(ctrl=torque,ctrl_idxs=ctrl_idxs,nstep=nstep,INCREASE_TICK=INCREASE_TICK)
 
         # actor_root_states = position([0:3]), rotation([3:7]), linear velocity([7:10]), and angular velocity([10:13]).
-
-        # obj_poses = self.get_objects_poses()
-
         result_dict = {
             "actor_root_states" : np.concatenate((self.get_p_body('base'), r2quat(self.get_R_body('base'))[[1,2,3,0]], self.get_qvel_joint('base')[0:3], self.get_qvel_joint('base')[3:6]), axis=-1),
             "dof_pos": self.get_qposes(),
@@ -200,49 +204,6 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
         }
             
         return result_dict
-
-
-    # def pd_step(self, trgt, PID):
-    #     """
-    #         Step
-    #     """
-    #     qpos = self.get_q(self.ctrl_joint_idxs)
-    #     #.data.qpos[env.ctrl_joint_idxs] # joint position
-    #     # qvel = env.data.qvel[env.ctrl_qvel_idxs] # joint velocity
-    #     PID.update(x_trgt=trgt,t_curr=self.get_sim_time,x_curr=qpos,VERBOSE=True)
-    #     torque = PID.out()
-
-    #     self.step(ctrl=torque)
-    #     print('hey')
-
-    def throw_objects(self):
-        # Throw cylinder
-        obj_names = [body_name for body_name in self.body_names
-            if body_name is not None and (body_name.startswith("obj_"))]
-        n_obj = len(obj_names)
-
-        # Place objects
-        colors = np.array([plt.cm.gist_rainbow(x) for x in np.linspace(0,1,n_obj)])
-        colors[:,3] = 1.0 # transparent objects
-        for obj_idx,obj_name in enumerate(obj_names):
-            xyzs = sample_xyzs(
-                n_sample=n_obj,x_range=[0.45,1.65],y_range=[-0.38,0.38],z_range=[0.81,0.81],min_dist=0.2,xy_margin=0.05)
-
-            geomadr = self.model.body(obj_name).geomadr[0]
-            self.model.geom(geomadr).rgba = colors[obj_idx] # color
-
-            jntadr  = self.model.body(obj_name).jntadr[0]
-            qposadr = self.model.jnt_qposadr[jntadr]
-            qveladr = self.model.jnt_dofadr[jntadr]
-            # geom_pos = self.data.qpos[qposadr:qposadr+3]
-            # geom_pos[:2] = geom_pos[:2] + 0.005*np.random.randn(2)
-            self.data.qpos[qposadr:qposadr+3] = self.data.qpos[0:3] + xyzs[obj_idx]
-            self.data.qvel[qveladr:qveladr+3] = -xyzs[obj_idx]*5
-
-            # self.data.qpos[qposadr+3:qposadr+7] = r2quat(rpy2r(np.radians([0,0,0])))
-
-
-
     
     def _compute_humanoid_obs(self):
         from amp.tasks.amp.common_rig_amp_base import compute_humanoid_observations
