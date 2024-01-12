@@ -183,6 +183,11 @@ class MotionLib():
             curr_file = motion_files[f]
             print("Loading {:d}/{:d} motion files: {:s}".format(f + 1, num_motion_files, curr_file))
             curr_motion = SkeletonMotion.from_file(curr_file)
+
+            # yoon0-0: except prismatic joint
+            # curr_motion.set_q_pos(curr_motion.q_pos[:, [7, 8, 9, 12, 13, 14, 15, 16, 17, 20, 21, 22, 23, 26, 27, 28, 29, 30, 31, 34]])
+            # curr_motion.global_rotation[:, 0] = torch.tensor(curr_motion.q_pos[:, 3:7])
+
             motion_fps = curr_motion.fps
             curr_dt = 1.0 / motion_fps
 
@@ -304,7 +309,7 @@ class MotionLib():
         phase = time / len
         phase = np.clip(phase, 0.0, 1.0)
 
-        frame_idx0 = (phase * (num_frames - 1)).astype(np.int)
+        frame_idx0 = (phase * (num_frames - 1)).astype(np.int32)
         frame_idx1 = np.minimum(frame_idx0 + 1, num_frames - 1)
         blend = (time - frame_idx0 * dt) / dt
 
