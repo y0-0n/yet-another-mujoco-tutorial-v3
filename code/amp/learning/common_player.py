@@ -86,59 +86,63 @@ class CommonPlayer(players.PpoPlayerContinuous):
 
             print_game_res = False
 
-            for n in range(self.max_steps):
-                obs_dict, done_env_ids = self._env_reset_done()
+            self.obs, rewards, self.dones, infos = self.env_step()
 
-                if has_masks:
-                    masks = self.env.get_action_mask()
-                    action = self.get_masked_action(obs_dict, masks, is_determenistic)
-                else:
-                    action = self.get_action(obs_dict, is_determenistic)
-                obs_dict, r, done, info =  self.env_step(self.env, action)
-                cr += r
+            for n, (obs, reward, done, amp_obs, terminate, prev_obs) in enumerate(zip(self.obs['obs'], rewards, self.dones, infos['amp_obs'], infos['terminate'], infos['prev_obs'])):
+
+            # for n in range(self.max_steps):
+                # obs_dict, done_env_ids = self._env_reset_done()
+
+                # if has_masks:
+                #     masks = self.env.get_action_mask()
+                #     action = self.get_masked_action(obs_dict, masks, is_determenistic)
+                # else:
+                #     action = self.get_action(obs_dict, is_determenistic)
+                # obs_dict, r, done, info =  self.env_step(self.env, action)
+                cr += reward
                 steps += 1
   
-                self._post_step(info)
+                # self._post_step(info)
 
-                if render:
-                    self.env.render(mode = 'human')
-                    time.sleep(self.render_sleep)
+                # if render:
+                #     self.env.render(mode = 'human')
+                #     time.sleep(self.render_sleep)
 
                 all_done_indices = done.nonzero(as_tuple=False)
                 done_indices = all_done_indices[::self.num_agents]
                 done_count = len(done_indices)
                 games_played += done_count
 
-                if done_count > 0:
-                    if self.is_rnn:
-                        for s in self.states:
-                            s[:,all_done_indices,:] = s[:,all_done_indices,:] * 0.0
+            if done_count > 0:
+                if self.is_rnn:
+                    for s in self.states:
+                        s[:,all_done_indices,:] = s[:,all_done_indices,:] * 0.0
 
-                    cur_rewards = cr[done_indices].sum().item()
-                    cur_steps = steps[done_indices].sum().item()
+                cur_rewards = cr[done_indices].sum().item()
+                cur_steps = steps[done_indices].sum().item()
 
-                    cr = cr * (1.0 - done.float())
-                    steps = steps * (1.0 - done.float())
-                    sum_rewards += cur_rewards
-                    sum_steps += cur_steps
+                cr = cr * (1.0 - done.float())
+                steps = steps * (1.0 - done.float())
+                sum_rewards += rewards
+                sum_steps += cur_steps
 
-                    game_res = 0.0
-                    if isinstance(info, dict):
-                        if 'battle_won' in info:
-                            print_game_res = True
-                            game_res = info.get('battle_won', 0.5)
-                        if 'scores' in info:
-                            print_game_res = True
-                            game_res = info.get('scores', 0.5)
-                    if self.print_stats:
-                        if print_game_res:
-                            print('reward:', cur_rewards/done_count, 'steps:', cur_steps/done_count, 'w:', game_res)
-                        else:
-                            print('reward:', cur_rewards/done_count, 'steps:', cur_steps/done_count)
+            #     game_res = 0.0
+            #     if isinstance(info, dict):
+            #         if 'battle_won' in info:
+            #             print_game_res = True
+            #             game_res = info.get('battle_won', 0.5)
+            #         if 'scores' in info:
+            #             print_game_res = True
+            #             game_res = info.get('scores', 0.5)
+                if self.print_stats:
+                    if print_game_res:
+                        print('reward:', cur_rewards/done_count, 'steps:', cur_steps/done_count, 'w:', game_res)
+                    else:
+                        print('reward:', cur_rewards/done_count, 'steps:', cur_steps/done_count)
 
-                    sum_game_res += game_res
-                    if batch_size//self.num_agents == 1 or games_played >= n_games:
-                        break
+                # sum_game_res += game_res
+                if batch_size//self.num_agents == 1 or games_played >= n_games:
+                    break
 
         print(sum_rewards)
         if print_game_res:

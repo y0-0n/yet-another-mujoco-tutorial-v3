@@ -47,6 +47,7 @@ params:
         name: ${resolve_default:CommonRigAMP,${....experiment}}
         full_experiment_name: ${.name}
         env_name: mujoco_amp
+        device_name: cpu
         device: cpu
         ppo: True
         multi_gpu: False

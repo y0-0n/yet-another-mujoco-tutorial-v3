@@ -52,9 +52,9 @@ class CommonRigAMP(CommonRigAMPBase):
 
         super().__init__(config=self.cfg, sim_device=sim_device, graphics_device_id=graphics_device_id, headless=headless)
 
-        motion_file = cfg['env'].get('motion_file')
-        motion_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../asset/" + motion_file)
-        self._load_motion(motion_file_path)
+        # motion_file = cfg['env'].get('motion_file')
+        # motion_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../asset/" + motion_file)
+        # self._load_motion(motion_file_path)
 
         self.num_amp_obs = self._num_amp_obs_steps * NUM_AMP_OBS_PER_STEP
 
@@ -125,7 +125,7 @@ class CommonRigAMP(CommonRigAMPBase):
         self._motion_lib = MotionLib(motion_file=motion_file, 
                                      num_dofs=self.num_dof,
                                      key_body_ids=self._key_body_ids.cpu().numpy(), 
-                                     device=self.device)
+                                     device='cpu')#)self.device)
         return
     
     def reset_idx(self, env_ids):
@@ -151,6 +151,7 @@ class CommonRigAMP(CommonRigAMPBase):
 
         return
     
+    # Not work
     def _reset_default(self, env_ids):
         self._dof_pos[env_ids] = self._initial_dof_pos[env_ids]
         self._dof_vel[env_ids] = self._initial_dof_vel[env_ids]
@@ -165,6 +166,7 @@ class CommonRigAMP(CommonRigAMPBase):
         self._reset_default_env_ids = env_ids
         return
 
+    # Work
     def _reset_ref_state_init(self, env_ids):
         num_envs = env_ids.shape[0]
         motion_ids = self._motion_lib.sample_motions(num_envs)

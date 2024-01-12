@@ -55,6 +55,9 @@ class MuJoCoParserClass(object):
                                 for x in range(self.n_body)]
         self.n_dof            = self.model.nv # degree of freedom
         self.n_joint          = self.model.njnt     # number of joints 
+        self.n_tendon          = self.model.ntendon     # number of tendons 
+        self.tendon_names     = [mujoco.mj_id2name(self.model,mujoco.mjtTrn.mjTRN_TENDON,x)
+                                 for x in range(self.n_tendon)]
         self.joint_names      = [mujoco.mj_id2name(self.model,mujoco.mjtJoint.mjJNT_HINGE,x)
                                  for x in range(self.n_joint)]
         self.joint_types      = self.model.jnt_type # joint types
@@ -71,6 +74,8 @@ class MuJoCoParserClass(object):
         self.pri_joint_maxs   = self.joint_ranges[self.pri_joint_idxs,1]
         self.pri_joint_ranges = self.pri_joint_maxs - self.pri_joint_mins
         self.n_pri_joint      = len(self.pri_joint_idxs)
+        # Tendon
+        self.tendon_idxs      = np.where(self.joint_types==mujoco.mjtJoint.mjJNT_HINGE)[0].astype(np.int32)
         # Actuator
         self.n_ctrl           = self.model.nu # number of actuators (or controls)
         self.ctrl_names       = []
@@ -82,6 +87,7 @@ class MuJoCoParserClass(object):
         for ctrl_idx in range(self.n_ctrl):
             transmission_idx = self.model.actuator(self.ctrl_names[ctrl_idx]).trnid # transmission index
             joint_idx = self.model.jnt_qposadr[transmission_idx][0] # index of the joint when the actuator acts on a joint
+            # joint_idx = self.model.tendon_adr[transmission_idx][0] # index of the joint when the actuator acts on a joint
             self.ctrl_joint_idxs.append(joint_idx)
             self.ctrl_joint_names.append(self.joint_names[transmission_idx[0]])
         self.ctrl_qpos_idxs = self.ctrl_joint_idxs
@@ -89,6 +95,7 @@ class MuJoCoParserClass(object):
         for ctrl_idx in range(self.n_ctrl):
             transmission_idx = self.model.actuator(self.ctrl_names[ctrl_idx]).trnid # transmission index
             joint_idx = self.model.jnt_dofadr[transmission_idx][0] # index of the joint when the actuator acts on a joint
+            # joint_idx = self.model.tendon_adr[transmission_idx][0] # index of the joint when the actuator acts on a joint
             self.ctrl_qvel_idxs.append(joint_idx)
         self.ctrl_ranges      = self.model.actuator_ctrlrange # control range
         # Sensors

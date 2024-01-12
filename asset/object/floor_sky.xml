@@ -1,5 +1,6 @@
 <mujoco model="floor and sky">
     
+    <option timestep="0.0083333" iterations="50" tolerance="1e-10" solver="Newton" jacobian="dense" cone="pyramidal"/>
     <!-- Haze -->
     <visual>
         <headlight diffuse="0.6 0.6 0.6" ambient="0.1 0.1 0.1" specular="0 0 0" />

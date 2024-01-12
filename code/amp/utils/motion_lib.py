@@ -40,6 +40,7 @@ from ..poselib.poselib.core.rotation3d import *
 # from amp.tasks.amp.common_rig_amp_base import DOF_BODY_IDS, DOF_OFFSETS
 from .torch_utils import to_torch
 from .torch_jit_utils import *
+from amp.utils.constant import DOF_BODY_IDS, DOF_OFFSETS
 # from tasks.amp.common_rig_amp_base import DOF_BODY_IDS, DOF_OFFSETS
 
 # TODO l5vd5 0: x, 1: y, 2: z (-1??)
@@ -183,6 +184,11 @@ class MotionLib():
             curr_file = motion_files[f]
             print("Loading {:d}/{:d} motion files: {:s}".format(f + 1, num_motion_files, curr_file))
             curr_motion = SkeletonMotion.from_file(curr_file)
+
+            # yoon0-0: except prismatic joint
+            # curr_motion.set_q_pos(curr_motion.q_pos[:, [7, 8, 9, 12, 13, 14, 15, 16, 17, 20, 21, 22, 23, 26, 27, 28, 29, 30, 31, 34]])
+            # curr_motion.global_rotation[:, 0] = torch.tensor(curr_motion.q_pos[:, 3:7])
+
             motion_fps = curr_motion.fps
             curr_dt = 1.0 / motion_fps
 
