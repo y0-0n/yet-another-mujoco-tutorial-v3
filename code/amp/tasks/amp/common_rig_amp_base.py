@@ -10,16 +10,16 @@ from mujoco_parser import MuJoCoParserClass
 from amp.utils.torch_jit_utils import *
 from ..base.vec_task import VecTask
 from ray.util.queue import Queue
-
-DOF_BODY_IDS    = [1, 2, 4, 5, 6,
-                   7, 8, 9, 10,
-                   12, 13, 14,
-                   16, 17, 18
-                    ]    # body idx which have DOF, not include root
-DOF_OFFSETS     = [0, 3, 4, 7, 8, 11,
-                   14, 15, 18, 21,
-                   24, 25, 28,
-                   31, 32, 35]  # joint number offset of each body
+from amp.utils.constant import DOF_BODY_IDS, DOF_OFFSETS
+# DOF_BODY_IDS    = [1, 2, 4, 5, 6,
+#                    7, 8, 9, 10,
+#                    12, 13, 14,
+#                    16, 17, 18
+#                     ]    # body idx which have DOF, not include root
+# DOF_OFFSETS     = [0, 3, 4, 7, 8, 11,
+#                    14, 15, 18, 21,
+#                    24, 25, 28,
+#                    31, 32, 35]  # joint number offset of each body
 NUM_OBS = 1 + 6 + 3 + 3 + 65 + 35 + 12 # [(root_h(z-height):1, root_rot:6, root_vel:3, root_ang_vel:3, dof_pos, dof_vel, key_body_pos]
 NUM_ACTIONS = 35    #from mjcf file (atlas_v5.xml actuator)
 NUM_ACTORS_PER_ENVS = 1 # Added from JTM, 2 actors per envs
@@ -135,7 +135,6 @@ class CommonRigAMPBase(VecTask):
 
         self._contact_forces = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
 
-        self._terminate_buf = torch.ones(self.num_envs, device=self.device, dtype=torch.long)
         
         if self.viewer != None:
             self._init_camera()   
@@ -149,7 +148,7 @@ class CommonRigAMPBase(VecTask):
 
     def create_sim(self):
         self.up_axis_idx = 2 # index of up axis: Y=1, Z=2
-        # MuJoCo는 sim을 만들고 env를 만들고 따로 하지 않음
+        # create MuJoCo envs
         self._create_ray_envs()
 
         # If randomizing, apply once immediately on startup before the fist sim step
@@ -192,9 +191,32 @@ class CommonRigAMPBase(VecTask):
         return
 
     def _create_ray_envs(self):
-        # Ray parallelization
-        self.mujoco_envs = [MuJoCoParserClassRay.remote(name='Common Rig Ray',rel_xml_path=self.asset_file, VERBOSE=False,USE_MUJOCO_VIEWER=(not self.headless), env_id=i) for i in range(self.num_envs)]
         self.standard_env = MuJoCoParserClass(name='Common Rig',rel_xml_path=self.asset_file, VERBOSE=False,USE_MUJOCO_VIEWER=False)
+
+        self._key_body_ids = self._build_key_body_ids_tensor() # NOTE: Different from Isaac index
+        self._contact_body_ids = self._build_contact_body_ids_tensor() # NOTE: Different from Isaac index
+
+        self.num_dof    = self.standard_env.n_rev_joint
+        self.num_bodies = self.standard_env.n_body - 1 # Except worldbody
+        self.num_joints = self.standard_env.n_rev_joint # NOTE: Different from Isaac num_joints
+
+        motion_file = self.cfg['env'].get('motion_file')
+        motion_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../asset/" + motion_file)
+        self._load_motion(motion_file_path)
+        # Ray parallelization
+        self.mujoco_envs = [MuJoCoParserClassRay.remote(name='Common Rig Ray',
+                                                        rel_xml_path=self.asset_file,
+                                                        VERBOSE=False,
+                                                        USE_MUJOCO_VIEWER=(not self.headless),
+                                                        device=self.device,
+                                                        env_id=i,
+                                                        contact_body_ids=self._contact_body_ids.cpu(),
+                                                        key_body_ids=self._key_body_ids.cpu(),
+                                                        motion_lib=self._motion_lib,
+                                                        max_episode_length=self.max_episode_length,
+                                                        horizon_length=self.horizon_length,
+                                                        ) for i in range(self.num_envs)]
+
         for i, env in enumerate(self.mujoco_envs):
             if self.headless == False:
                 env.init_viewer.remote(viewer_title='Common Rig Ray'+str(i),viewer_width=1200,viewer_height=800,
@@ -204,9 +226,6 @@ class CommonRigAMPBase(VecTask):
                         contactwidth=0.2,contactheight=0.1,contactrgba=np.array([1,0,0,1]),
                         VIS_JOINT=True,jointlength=0.5,jointwidth=0.1,jointrgba=[0.2,0.6,0.8,0.6])
 
-        self.num_dof    = self.standard_env.n_rev_joint
-        self.num_bodies = self.standard_env.n_body - 1 # Except worldbody
-        self.num_joints = self.standard_env.n_rev_joint # NOTE: Different from Isaac num_joints
 
         self.right_foot_idx = self.standard_env.model.body('right_ankle').id # NOTE: Different from Isaac index
         self.left_foot_idx = self.standard_env.model.body('left_ankle').id # NOTE: Different from Isaac index
@@ -216,8 +235,6 @@ class CommonRigAMPBase(VecTask):
         # NOTE: No sensor
         # self.standard_env.model.sensor()
 
-        self._key_body_ids = self._build_key_body_ids_tensor() # NOTE: Different from Isaac index
-        self._contact_body_ids = self._build_contact_body_ids_tensor() # NOTE: Different from Isaac index
 
         self.dof_limits_lower = []
         self.dof_limits_upper = []
@@ -701,10 +718,37 @@ def compute_humanoid_observations(root_states, dof_pos, dof_vel, key_body_pos, l
 
 # yoon0-0 TODO: reward tuning
 @torch.jit.script
-def compute_humanoid_reward(cur_root_state, pre_root_state, humanoid_ids):
-    # type: (Tensor, Tensor, Tensor) -> Tensor
+def compute_humanoid_reward(cur_root_state, pre_root_state, humanoid_ids=None):
+    # type: (Tensor, Tensor, Any) -> Tensor
     reward = torch.ones_like(cur_root_state[:, 0])
     return reward
+
+@torch.jit.script
+def compute_humanoid_reset2(progress_buf, contact_buf, contact_body_ids, rigid_body_pos,
+                        max_episode_length, enable_early_termination, termination_height):
+    # type: (Tensor, Tensor, Tensor, Tensor, float, bool, float) -> Tuple[Tensor, Tensor]
+    terminated = torch.zeros((1,))
+    if (enable_early_termination):
+        masked_contact_buf = contact_buf.clone()
+        masked_contact_buf[contact_body_ids, :] = 0 # masking contact body ids (foot, ...)
+        fall_contact = torch.any(masked_contact_buf > 0.1, dim=-1) # check body has fallen
+        fall_contact = torch.any(fall_contact, dim=-1) # get fall env
+
+        body_height = rigid_body_pos[..., 2]
+        
+        fall_height = body_height < termination_height
+        fall_height[:, contact_body_ids] = False
+        fall_height = torch.any(fall_height, dim=-1)
+        has_fallen = torch.logical_and(fall_contact, fall_height)
+
+        # first timestep can sometimes still have nonzero contact forces
+        # so only check after first couple of steps
+        has_fallen *= (progress_buf > 1)
+        terminated = torch.ones((1,)) if has_fallen else terminated
+    
+    reset = torch.ones((1,)) if progress_buf >= max_episode_length - 1 else terminated
+
+    return reset, terminated
 
 @torch.jit.script
 def compute_humanoid_reset(reset_buf, progress_buf, contact_buf, contact_body_ids, rigid_body_pos,

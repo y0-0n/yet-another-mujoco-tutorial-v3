@@ -161,6 +161,9 @@ class RLGPUEnv(vecenv.IVecEnv):
 
     def step(self, action):
         return  self.env.step(action)
+    
+    def step(self, model, running_mean_std, value_mean_std):
+        return self.env.step(model, running_mean_std, value_mean_std)
 
     def reset(self):
         return self.env.reset()

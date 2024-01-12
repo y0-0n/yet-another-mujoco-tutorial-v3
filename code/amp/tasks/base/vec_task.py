@@ -106,7 +106,7 @@ class Env(ABC):
 
         self.clip_obs = config["env"].get("clipObservations", np.Inf)
         self.clip_actions = config["env"].get("clipActions", np.Inf)
-        
+        self.horizon_length = config["env_config"].get("horizon_length", 1000)
         print ("Ready.")
 
     @abc.abstractmethod 
@@ -205,7 +205,8 @@ class VecTask(Env):
         self.sim_initialized = True
 
         self.set_viewer()
-        self.allocate_buffers()
+        # self.allocate_buffers()
+        self.allocate_buffers_ray()
 
         self.obs_dict = {}
 
@@ -256,6 +257,48 @@ class VecTask(Env):
             self.num_envs, device=self.device, dtype=torch.long)
         self.randomize_buf = torch.zeros(
             self.num_envs, device=self.device, dtype=torch.long)
+        self._terminate_buf = torch.ones(self.num_envs, device=self.device, dtype=torch.long)
+        self.extras = {}
+
+    def allocate_buffers_ray(self):
+        """Allocate the observation, states, etc. buffers.
+
+        These are what is used to set observations and states in the environment classes which
+        inherit from this one, and are read in `step` and other related functions.
+
+        """
+
+        # allocate buffers
+        self.obs_buf = torch.zeros(
+            (self.num_envs, self.horizon_length, self.num_obs), device=self.device, dtype=torch.float)
+        self.amp_obs_buf = torch.zeros(
+            (self.num_envs, self.horizon_length, self.num_obs*2), device=self.device, dtype=torch.float)
+        self.prev_obs = torch.zeros(
+            (self.num_envs, self.num_obs), device=self.device, dtype=torch.float)
+        self.prev_amp_obs = torch.zeros(
+            (self.num_envs, self.num_obs), device=self.device, dtype=torch.float)
+        self.soccer_ball_obs_buf = torch.zeros(
+            (self.num_envs, self.horizon_length, 13), device=self.device, dtype=torch.float)
+        self.states_buf = torch.zeros(
+            (self.num_envs, self.horizon_length, self.num_states), device=self.device, dtype=torch.float)
+        self.rew_buf = torch.ones(
+            (self.num_envs, self.horizon_length), device=self.device, dtype=torch.float)
+        self.reset_buf = torch.ones(
+            (self.num_envs, self.horizon_length), device=self.device, dtype=torch.long)
+        self.timeout_buf = torch.zeros(
+             (self.num_envs, self.horizon_length), device=self.device, dtype=torch.long)
+        self.progress_buf = torch.zeros(
+            (self.num_envs, self.horizon_length), device=self.device, dtype=torch.long)
+        self.randomize_buf = torch.zeros(
+            (self.num_envs, self.horizon_length), device=self.device, dtype=torch.long)
+        self._terminate_buf = torch.ones(
+            (self.num_envs, self.horizon_length), device=self.device, dtype=torch.long)
+        self.neglogpacs = torch.zeros((self.num_envs, self.horizon_length,), device=self.device) #[]
+        self.values = torch.zeros((self.num_envs, self.horizon_length,), device=self.device)
+        self.actions = torch.zeros((self.num_envs, self.horizon_length,self.num_actions), device=self.device)
+        self.mus = torch.zeros((self.num_envs, self.horizon_length,self.num_actions), device=self.device)
+        self.sigmas = torch.zeros((self.num_envs, self.horizon_length,self.num_actions), device=self.device)
+
         self.extras = {}
 
     @abc.abstractmethod
@@ -301,20 +344,12 @@ class VecTask(Env):
         if self.dr_randomizations.get('actions', None):
             actions = self.dr_randomizations['actions']['noise_lambda'](actions)
         
-
-        # rollouts = []
-        # for action, env in zip(action_tensor, self.mujoco_envs):
-        #     rollouts.append(env.step.remote(ctrl=action))
-
         # apply actions
         self.pre_physics_step(actions)
         action_tensor = torch.clamp(actions, -self.clip_actions, self.clip_actions)
         pd_tar = self._action_to_pd_targets(action_tensor)
 
-        rollouts = []
-        for trgt, env in zip(pd_tar, self.mujoco_envs):
-            rollouts.append(env.pd_step.remote(trgt=trgt.cpu().numpy(), nstep=4))
-            # env.step.remote(ctrl=action)
+        rollouts = [env.pd_step.remote(trgt=trgt.cpu().numpy()) for trgt, env in zip(pd_tar, self.mujoco_envs)]
 
         self._contact_forces = torch.zeros_like(self._contact_forces)
         results = ray.get(rollouts)
@@ -343,10 +378,6 @@ class VecTask(Env):
                 for env in self.mujoco_envs:
                     env.render.remote()
             
-        # to fix!
-        # if self.device == 'cpu':
-        #     self.fetch_result()
-
         # fill time out buffer
         self.timeout_buf = torch.where(self.progress_buf >= self.max_episode_length - 1, torch.ones_like(self.timeout_buf), torch.zeros_like(self.timeout_buf))
         
@@ -366,6 +397,110 @@ class VecTask(Env):
             self.obs_dict["states"] = self.get_state()
 
         return self.obs_dict, self.rew_buf.to(self.rl_device), self.reset_buf.to(self.rl_device), self.extras
+    
+    def step(self, model, running_mean_std, value_mean_std) -> Tuple[Dict[str, torch.Tensor], torch.Tensor, torch.Tensor, Dict[str, Any]]:
+        """Step the physics of the environment.
+
+        Args:
+            actions: actions to apply
+        Returns:
+            Observations, rewards, resets, info
+            Observations are dict of observations (currently only one member called 'obs')
+        """
+
+        # randomize actions
+        # if self.dr_randomizations.get('actions', None):
+        #     actions = self.dr_randomizations['actions']['noise_lambda'](actions)
+        
+        # apply actions
+        # self.pre_physics_step(actions)
+
+        ray_dict = {'model': model.cpu().state_dict(),
+            'running_mean_std': running_mean_std.cpu().state_dict(),
+            'value_mean_std': value_mean_std.cpu().state_dict(),
+            }
+        
+        rollouts = [env.pd_step_loop.remote(
+            ray_dict=ray_dict
+            # model=model.to('cpu'),running_mean_std=running_mean_std.to('cpu'),value_mean_std=value_mean_std.to('cpu')
+            ) for env in self.mujoco_envs]
+
+        self._contact_forces = torch.zeros_like(self._contact_forces)
+        results = ray.get(rollouts)
+
+        # compute observations, rewards, resets, ...
+        # self.post_physics_step()
+
+        # self._update_hist_amp_obs()
+
+        # TODO: randomize observations 
+        # if self.dr_randomizations.get('observations', None):
+        #     self.obs_buf = self.dr_randomizations['observations']['noise_lambda'](self.obs_buf)
+        # running_mean = torch.zeros_like(running_mean_std.running_mean)
+        # running_var = torch.zeros_like(running_mean_std.running_var)
+        for i, res in enumerate(results): # workers
+            # for j in range(len(res['actor_root_states'])): # horizon
+            self.obs_buf[i] = res['obses']
+            self.reset_buf[i] = res['resets']
+            prev_amp_obs = torch.cat((res['prev_amp_obs'].unsqueeze(dim=0), res['amp_obses'][1:,:]))
+            cur_amp_obs = res['amp_obses']
+            self.amp_obs_buf[i] = torch.cat((cur_amp_obs, prev_amp_obs), dim=1)
+            # self.rew_buf[i] = res['rewards'] # TODO
+            self.neglogpacs[i] = res['neglogpacs']
+            self.values[i] = res['values']
+            self.actions[i] = res['actions']
+            self.mus[i] = res['mus']
+            self.sigmas[i] = res['sigmas']
+            self._terminate_buf[i] = res['terminates']
+            self.prev_obs[i] = res['prev_obs'].to(self.device)
+            # self.prev_amp_obs[i] = res['prev_amp_obs'].to(self.device)
+
+            # update running mean std -> no need to train because updated when training with minibatch
+            # running_mean_std.train()
+            # value_mean_std.train()
+            
+            # mean = res['raw_obses'].mean()
+            # var = res['raw_obses'].var()
+            # running_mean_std.running_mean, running_mean_std.running_var, running_mean_std.count = running_mean_std._update_mean_var_count_from_moments(running_mean_std.running_mean, running_mean_std.running_var, running_mean_std.count, 
+            #                                         mean, var, self.horizon_length)
+            
+            # mean = res['raw_values'].mean()
+            # var = res['raw_values'].var()
+            # value_mean_std.running_mean, value_mean_std.running_var, value_mean_std.count = value_mean_std._update_mean_var_count_from_moments(value_mean_std.running_mean, value_mean_std.running_var, value_mean_std.count, 
+            #                                         mean, var, self.horizon_length)
+
+            # running_mean = running_mean + res['running_mean_std'].running_mean
+            # running_var = running_var + res['running_mean_std'].running_var
+
+        # reset device (cannot be detached)
+        model.cuda()
+        running_mean_std.cuda()
+        value_mean_std.cuda()
+        # model.to(self.device)
+        # running_mean_std.to(self.device)
+        # value_mean_std.to(self.device)
+
+
+        res_dicts = {
+            "neglogpacs": self.neglogpacs,
+            "values": self.values.unsqueeze(dim=-1),
+            "actions": self.actions,
+            "mus": self.mus,
+            "sigmas": self.sigmas,
+        }
+        self.obs_dict["obs"] = torch.clamp(self.obs_buf, -self.clip_obs, self.clip_obs).to(self.rl_device)
+        self.extras["terminate"] = self._terminate_buf
+        self.extras["res_dicts"] = res_dicts
+        self.extras["amp_obs"] = self.amp_obs_buf
+        self.extras["prev_obs"] = self.prev_obs
+        # self.extras["prev_amp_obs"] = self.prev_amp_obs
+
+        # asymmetric actor-critic
+        if self.num_states > 0:
+            self.obs_dict["states"] = self.get_state()
+
+        return self.obs_dict, self.rew_buf.to(self.rl_device), self.reset_buf.to(self.rl_device), self.extras
+
 
     def zero_actions(self) -> torch.Tensor:
         """Returns a buffer with zero actions.

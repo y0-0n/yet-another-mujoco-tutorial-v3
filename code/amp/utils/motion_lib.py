@@ -37,9 +37,10 @@ from ..poselib.poselib.core.rotation3d import *
 
 # TODO l5vd5
 # from tasks.amp.humanoid_amp_base import DOF_BODY_IDS, DOF_OFFSETS
-from amp.tasks.amp.common_rig_amp_base import DOF_BODY_IDS, DOF_OFFSETS
+# from amp.tasks.amp.common_rig_amp_base import DOF_BODY_IDS, DOF_OFFSETS
 from .torch_utils import to_torch
 from .torch_jit_utils import *
+from amp.utils.constant import DOF_BODY_IDS, DOF_OFFSETS
 # from tasks.amp.common_rig_amp_base import DOF_BODY_IDS, DOF_OFFSETS
 
 # TODO l5vd5 0: x, 1: y, 2: z (-1??)
