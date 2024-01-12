@@ -1,0 +1,9 @@
+<mujoco model="common-rig scene">
+
+  <!-- SMPL -->
+  <include file="./smpl_rig_rilab_mini.xml" />
+
+  <!-- Floor and Sky -->
+  <include file="../object/floor_sky.xml" />
+
+</mujoco>
