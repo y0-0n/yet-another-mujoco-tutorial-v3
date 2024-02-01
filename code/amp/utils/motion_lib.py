@@ -184,6 +184,11 @@ class MotionLib():
             curr_file = motion_files[f]
             print("Loading {:d}/{:d} motion files: {:s}".format(f + 1, num_motion_files, curr_file))
             curr_motion = SkeletonMotion.from_file(curr_file)
+
+            # yoon0-0: except prismatic joint (myosuite)
+            # curr_motion.set_q_pos(curr_motion.q_pos[:, [7, 8, 9, 12, 13, 14, 15, 16, 17, 20, 21, 22, 23, 26, 27, 28, 29, 30, 31, 34]])
+            # curr_motion.global_rotation[:, 0] = torch.tensor(curr_motion.q_pos[:, 3:7])
+
             motion_fps = curr_motion.fps
             curr_dt = 1.0 / motion_fps
 
@@ -317,19 +322,6 @@ class MotionLib():
         return num_bodies
 
     def _compute_motion_dof_vels(self, motion):
-        # num_frames = motion.tensor.shape[0]
-        # dt = 1.0 / motion.fps
-        # dof_vels = []
-
-        # for f in range(num_frames - 1):
-        #     local_rot0 = motion.local_rotation[f]
-        #     local_rot1 = motion.local_rotation[f + 1]
-        #     frame_dof_vel = self._local_rotation_to_dof_vel(local_rot0, local_rot1, dt)
-        #     frame_dof_vel = frame_dof_vel
-        #     dof_vels.append(frame_dof_vel)
-        
-        # dof_vels.append(dof_vels[-1])
-        # dof_vels = np.array(dof_vels)
         num_frames = motion.tensor.shape[0]
         dt = 1.0 / motion.fps
         dof_vels = []
@@ -343,68 +335,6 @@ class MotionLib():
         dof_vels.append(dof_vels[-1])
         dof_vels = np.array(dof_vels)
         return dof_vels
-    
-    def _local_rotation_to_dof(self, local_rot):
-        body_ids = DOF_BODY_IDS
-        dof_offsets = DOF_OFFSETS
-
-        n = local_rot.shape[0]
-        dof_pos = torch.zeros((n, self._num_dof), dtype=torch.float, device=self._device)
-
-        for j in range(len(body_ids)):
-            body_id = body_ids[j]
-            joint_offset = dof_offsets[j]
-            joint_size = dof_offsets[j + 1] - joint_offset
-
-            if (joint_size == 3):
-                joint_q = local_rot[:, body_id]
-                joint_exp_map = quat_to_exp_map(joint_q)
-                dof_pos[:, joint_offset:(joint_offset + joint_size)] = joint_exp_map
-            elif (joint_size == 1):
-                joint_q = local_rot[:, body_id]
-                joint_theta, joint_axis = quat_to_angle_axis(joint_q)
-                joint_theta = joint_theta * joint_axis[..., 1] # assume joint is always along y axis TODO l5vd5
-                #TODO: l5vd5
-
-                joint_theta = normalize_angle(joint_theta)
-                dof_pos[:, joint_offset] = joint_theta
-
-            else:
-                print("Unsupported joint type")
-                assert(False)
-
-        return dof_pos
-
-    def _local_rotation_to_dof_vel(self, local_rot0, local_rot1, dt):
-        body_ids = DOF_BODY_IDS
-        dof_offsets = DOF_OFFSETS
-
-        dof_vel = np.zeros([self._num_dof])
-
-        diff_quat_data = quat_mul_norm(quat_inverse(local_rot0), local_rot1)
-        diff_angle, diff_axis = quat_angle_axis(diff_quat_data)
-        local_vel = diff_axis * diff_angle.unsqueeze(-1) / dt
-        local_vel = local_vel.numpy()
-
-        for j in range(len(body_ids)):
-            body_id = body_ids[j]
-            joint_offset = dof_offsets[j]
-            joint_size = dof_offsets[j + 1] - joint_offset
-
-            if (joint_size == 3):
-                joint_vel = local_vel[body_id]
-                dof_vel[joint_offset:(joint_offset + joint_size)] = joint_vel
-
-            elif (joint_size == 1):
-                assert(joint_size == 1)
-                joint_vel = local_vel[body_id]
-                dof_vel[joint_offset] = joint_vel[JOINT_AXIS[j]]# * JOINT_SIGN[j] # assume joint is always along y axis TODO l5vd5
-
-            else:
-                print("Unsupported joint type")
-                assert(False)
-
-        return dof_vel
     
     # yoon0_0
     def _euler_dof_to_angle_axis_dof(self, euler):
