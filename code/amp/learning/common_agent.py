@@ -422,10 +422,10 @@ class CommonAgent(a2c_continuous.A2CAgent):
     def discount_values(self, mb_fdones, mb_values, mb_rewards, mb_next_values):
         # yoon0-0 : transpose
         lastgaelam = 0
-        mb_fdones = mb_fdones.transpose(0, 1)
-        mb_rewards = mb_rewards.transpose(0, 1)
-        mb_values = mb_values.transpose(0, 1)
-        mb_next_values = mb_next_values.transpose(0, 1)
+        # mb_fdones = mb_fdones.transpose(0, 1)
+        # mb_rewards = mb_rewards.transpose(0, 1)
+        # mb_values = mb_values.transpose(0, 1)
+        # mb_next_values = mb_next_values.transpose(0, 1)
         mb_advs = torch.zeros_like(mb_rewards)
 
         for t in reversed(range(self.horizon_length)): 
@@ -436,7 +436,7 @@ class CommonAgent(a2c_continuous.A2CAgent):
             lastgaelam = delta + self.gamma * self.tau * not_done * lastgaelam
             mb_advs[t] = lastgaelam
 
-        return mb_advs.transpose(0, 1)
+        return mb_advs
 
     def bound_loss(self, mu):
         if self.bounds_loss_coef is not None:

@@ -29,7 +29,7 @@
 
 from abc import ABCMeta, abstractmethod, abstractclassmethod
 from collections import OrderedDict
-import json
+import json, pickle
 
 import numpy as np
 import os

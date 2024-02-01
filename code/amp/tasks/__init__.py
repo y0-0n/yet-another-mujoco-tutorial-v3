@@ -31,8 +31,13 @@
 # from tasks.humanoid import Humanoid
 # from tasks.humanoid_amp import HumanoidAMP
 from .common_rig_amp import CommonRigAMP
+from .myosuite_amp import MyoSuiteAMP
+from .smpl_rig_amp import SMPLRigAMP
+
 
 # Mappings from strings to environments
 mujoco_task_map = {
-    "CommonRigAMP": CommonRigAMP
+    "CommonRigAMP": CommonRigAMP,
+    "MyoSuiteAMP": MyoSuiteAMP,
+    "SMPLRigAMP": SMPLRigAMP
 }

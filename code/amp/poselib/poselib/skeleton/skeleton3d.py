@@ -159,7 +159,7 @@ class SkeletonTree(Serializable):
     @property
     def num_joints(self):
         """ number of nodes in the skeleton tree """
-        return len(self)
+        return len(self) # yoon0-0
 
     @classmethod
     def from_dict(cls, dict_repr, *args, **kwargs):
@@ -429,7 +429,8 @@ class SkeletonState(Serializable):
         """
         if not hasattr(self, "_root_translation"):
             self._root_translation = self.tensor[
-                ..., self.num_joints * 4 : self.num_joints * 4 + 3
+                # ..., self.num_joints * 4 : self.num_joints * 4 + 3
+                ..., 244:247 # smpl_rig
             ]
         return self._root_translation
 

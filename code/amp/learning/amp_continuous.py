@@ -164,17 +164,18 @@ class AMPAgent(common_agent.CommonAgent):
         # ____ start for ________
         self.obs, rewards, self.dones, infos = self.env_step()
 
-        for n, (obs, reward, done, amp_obs, terminate, prev_obs) in enumerate(zip(self.obs['obs'], rewards, self.dones, infos['amp_obs'], infos['terminate'], infos['prev_obs'])):
+        for n, (obs, reward, done, amp_obs, terminate, prev_obs) in enumerate(zip(self.obs['obs'].transpose(0,1), rewards.transpose(0,1), self.dones.transpose(0,1), infos['amp_obs'].transpose(0,1), infos['terminate'].transpose(0,1), infos['prev_obses'].transpose(0,1))):
             
-            self.experience_buffer.update_data('obses', n, torch.cat((prev_obs.unsqueeze(dim=0), obs[1:,:])))
-            
+            # self.experience_buffer.update_data('obses', n, torch.cat((prev_obs.unsqueeze(dim=0), obs[1:,:])))
+
             for k in update_list:
-                self.experience_buffer.update_data(k, n, infos['res_dicts'][k][n])
+                self.experience_buffer.update_data(k, n, infos['res_dicts'][k].transpose(0,1)[n])
 
             # if self.has_central_value:
             #     self.experience_buffer.update_data('states', n, self.obs['states'])
 
             shaped_rewards = self.rewards_shaper(reward)
+            self.experience_buffer.update_data('obses', n, prev_obs)
             self.experience_buffer.update_data('rewards', n, shaped_rewards)
             self.experience_buffer.update_data('next_obses', n, obs)
             self.experience_buffer.update_data('dones', n, done)

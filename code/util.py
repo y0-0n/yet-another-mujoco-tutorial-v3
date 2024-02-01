@@ -139,6 +139,27 @@ def r2quat(R):
         it.iternext()
     return q
 
+def quat2r(q):
+    q = q / np.linalg.norm(q)
+    x = q[..., 1]
+    y = q[..., 2]
+    z = q[..., 3]
+    w = q[..., 0]
+
+    R = np.zeros(q.shape[:-1]+(3, 3), dtype=np.float64)
+    R[..., 0, 0] = w**2 + x**2 - y**2 - z**2
+    R[..., 0, 1] = 2*x*y - 2*w*z
+    R[..., 0, 2] = 2*x*z + 2*w*y
+    R[..., 1, 0] = 2*x*y + 2*w*z
+    R[..., 1, 1] = w**2 - x**2 + y**2 - z**2
+    R[..., 1, 2] = 2*y*z - 2*w*x
+    R[..., 2, 0] = 2*x*z - 2*w*y
+    R[..., 2, 1] = 2*y*z + 2*w*x
+    R[..., 2, 2] = w**2 - x**2 - y**2 + z**2
+
+    return R
+
+
 def skew(x):
     """ 
         Get a skew-symmetric matrix
