@@ -156,6 +156,13 @@ class AMPAgent(common_agent.CommonAgent):
 
         return batch_dict
     
+    def env_step(self):
+        obs, rewards, dones, infos = self.vec_env.step(self.model, self.running_mean_std, self.value_mean_std)
+
+        if self.value_size == 1:
+            rewards = rewards.unsqueeze(2)
+        return self.obs_to_tensors(obs), rewards.to(self.ppo_device).float(), dones.to(self.ppo_device), infos
+
     def play_steps_ray(self):
         self.set_eval()
 
