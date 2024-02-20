@@ -1,0 +1,481 @@
+<mujoco model="smpl-rig">
+    <!--  
+            Robot Intelligence Lab
+            SMPL-X Robot Mini model
+            
+            @ Contact us : taemoon-jeong (motor_moon94@korea.ac.kr)
+    -->
+    <statistic extent="2" center="0 0 1"/>
+    <compiler  inertiafromgeom="true" angle="radian" autolimits="true"/>
+    <option timestep="0.00833" iterations="50" tolerance="1e-10" solver="Newton" jacobian="dense" cone="pyramidal"/>
+    <default>
+        <site size=".04" group="3"/>
+        <!-- <geom condim="1" material="matgeom"/> -->
+        <!-- <geom condim="1" contype="1" margin="0.001" solref=".02 1" solimp=".8 .8 .01" material="matgeom"/> -->
+        <motor ctrlrange="-1. 1." ctrllimited="true"/>
+        <default class="body">
+            <!-- geoms -->
+            <geom type="capsule" condim="1" solimp=".9 .99 .003" solref=".015 1" material="matgeom" density="800" />
+            <default class="thigh">
+                <geom size=".06"/>
+            </default>
+            <default class="shin">
+                <geom fromto="0 0 0 0 0 -.3"  size=".049"/>
+            </default>
+            <default class="foot">
+                <geom size=".027"/>
+                <default class="foot1">
+                    <geom fromto="-.07 -.01 -0.05 .14 -.03 -0.05"/>
+                </default>
+                <default class="foot2">
+                    <geom fromto="-.07 .01 -0.05 .14  .03 -0.05"/>
+                </default>
+            </default>
+
+            <!-- joints -->
+            <joint type="hinge" damping=".2" stiffness="5" armature=".01" limited="true" solimplimit="0 .99 .01"/>
+            <default class="joint_big">
+                <joint damping="5" stiffness="10"/>
+                <default class="hip_x">
+                <joint/>
+                </default>
+                <default class="hip_z">
+                <joint/>
+                </default>
+                <default class="hip_y">
+                <joint axis="0 1 0"/>
+                </default>
+                <default class="joint_big_stiff">
+                <joint stiffness="20"/>
+                </default>
+            </default>
+            <default class="knee">
+                <joint pos="0 0 .02"/>
+            </default>
+            <default class="ankle">
+                <joint/>
+                <default class="ankle_y">
+                <joint pos="0 0 .08" axis="0 1 0" stiffness="6"/>
+                </default>
+                <default class="ankle_x">
+                <joint pos="0 0 .04" stiffness="3"/>
+                </default>
+            </default>
+            <default class="shoulder">
+                <joint />
+            </default>
+            <default class="elbow">
+                <joint stiffness="0"/>
+            </default>
+
+            <!-- tracking site -->
+            <default class="tracking_site">
+                <site type="sphere" size="0.027" rgba="1 0 0 1" group="3"/>
+            </default>
+        </default>
+    </default>
+
+    <visual>
+        <!-- <map force="0.1" zfar="30"/> -->
+        <rgba haze="0.15 0.25 0.35 1"/>
+        <quality shadowsize="2048"/>
+        <global offwidth="800" offheight="800"/>
+    </visual>
+
+    <asset>
+        <texture name="texgeom" type="cube" builtin="flat" mark="cross" width="127" height="1278" 
+            rgb1="0.8 0.6 0.4" rgb2="0.8 0.6 0.4" markrgb="1 1 1" random="0.01"/>  
+        <material name="matgeom" texture="texgeom" texuniform="true" rgba="0.8 0.6 0.4 1.0"/>
+    </asset>
+
+    <worldbody>
+        <!-- <geom name="floor" type="plane" conaffinity="1" size="50 50 .05" material="blue_grid"/> -->
+        <body name="base" pos="0 0 0.95">
+            <freejoint name="base"/>
+            <geom name="base" type="sphere" pos="0 0 0" size="0.06"/>
+            <body name="root" pos="0 0 0" euler="0 0 0" >
+                <joint name="root1" type="hinge" pos="0 0 0" axis="1 0 0" range="-1.5 1.5" armature="0.02" class="joint_big"/>
+                <joint name="root2" type="hinge" pos="0 0 0" axis="0 1 0" range="-1.5 1.5" armature="0.02" class="joint_big"/>
+                <joint name="root3" type="hinge" pos="0 0 0" axis="0 0 1" range="-1.5 1.5" armature="0.02" class="joint_big_stiff"/>
+                <geom name="base2spine1" type="capsule" fromto="0 0 0 -0.02669631317257881 -0.00253287423402071 0.10896323621273041"  size="0.04"/>
+                <site name="base2spine1" type="capsule" fromto="0 0 0 -0.02669631317257881 -0.00253287423402071 0.10896323621273041"  size="0.04" />
+                <body name="spine1" pos="-0.02669631317257881 -0.00253287423402071 0.10896323621273041" euler="0 0 0" >
+                    <geom name="spine2spine" type="capsule" fromto="0 0 0 0.001092471182 0.005487040151 0.1351804286"  size="0.04"/>                    
+                    <body name="spine2" pos="0.001092471182 0.005487040151 0.1351804286" euler="0 0 0">
+                        <geom name="spine2spine2" type="capsule" fromto="0 0 0 0.02542456612 0.001456997823 0.05292221904"  size="0.04"/>
+                        <site name="spine2spine2" type="capsule" fromto="0 0 0 0.02542456612 0.001456997823 0.05292221904"  size="0.04" />
+                        <joint name="spine1" type="hinge" pos="0 0 0" axis="1 0 0" range="-1.5 1.5" armature="0.02" class="joint_big" />
+                        <joint name="spine2" type="hinge" pos="0 0 0" axis="0 1 0" range="-1.5 1.5" armature="0.02" class="joint_big" />
+                        <joint name="spine3" type="hinge" pos="0 0 0" axis="0 0 1" range="-1.5 1.5" armature="0.02" class="joint_big" />
+                        
+                        <body name="spine3" pos="0.02542456612 0.0 0.05292221904" euler="0 0 0">
+                            <geom name="spine2spine3" type="capsule" fromto="0 0 0 -0.04285703227 -0.002778389724 0.2138703763"  size="0.04"/>
+                            <site name="spine2spine3" type="capsule" fromto="0 0 0 -0.04285703227 -0.002778389724 0.2138703763"  size="0.04" />                            
+                            <body name="neck" pos="-0.04285703227 -0.002778389724 0.2138703763" euler="0 0 0">
+                                <geom name="neck2head" type="capsule" fromto="0 0 0 0.05134896934 0.00515184016 0.0649696588"  size="0.04" />
+
+                                <body name="head" pos="0.05134896934 0.00515184016 0.06496965885" euler="0 0 0">
+                                    <site name="head" type="box" pos="0 0  0.06496965885" size="0.06 0.06 0.07" />
+                                    <geom name="head" type="box" pos="0 0  0.06496965885" size="0.06 0.06 0.07" />
+                                    <geom name="nose" type="box" pos="0.05 0  0.06496965885" size="0.05 0.02 0.02" />
+                                    <joint name="head1" type="hinge" pos="0 0 0" axis="1 0 0" range="-1.57 1.57" armature="0.02" />
+                                    <joint name="head2" type="hinge" pos="0 0 0" axis="0 1 0" range="-1.57 1.57" armature="0.02" />
+                                    <joint name="head3" type="hinge" pos="0 0 0" axis="0 0 1" range="-1.57 1.57" armature="0.02" />
+                                </body>
+                            </body>
+
+                            <geom name="spine2lcollar" type="capsule" fromto="0 0 0 -0.03408960626 0.07884474564 0.1217493117"  size="0.04" />
+                            <body name="left_collar" pos="-0.03408960626 0.07884474564 0.1217493117" euler="0 0 0">
+                                <geom name="lcollar2lshoulder" type="capsule" fromto="0 0 0 -0.008868150413 0.09097691625 0.03046888113"  size="0.04" />
+                                
+                                <body name="left_shoulder" pos="-0.008868150413 0.09097691625 0.03046888113" euler="0 0 0">
+                                    <geom name="lshoulder2lelbow" type="capsule" fromto="0 0 0 -0.02745642886 0.2596122175 -0.01277205348"  size="0.04" />
+                                    <joint name="l_shoulder1" type="hinge" pos="0 0 0" axis="1 0 0" range="-3.141592 3.141592" armature="0.0068" class="shoulder" />
+                                    <joint name="l_shoulder2" type="hinge" pos="0 0 0" axis="0 0 1" range="-3.141592 3.141592" armature="0.0051" class="shoulder" />
+                                    <joint name="l_shoulder3" type="hinge" pos="0 0 0" axis="0 1 0" range="-3.141592 3.141592" armature="0.0051" class="shoulder" />
+                                    
+                                    <body name="left_elbow" pos="-0.02745642886 0.2596122175 -0.01277205348" euler="0 0 0">
+                                        <geom name="lelbow2lwrist" type="capsule" fromto="0 0 0 -0.001170918345 0.2492336035 0.008986026049"  size="0.04" />
+                                        <joint name="l_elbow" type="hinge" pos="0 0 0" axis="0 0 1" range="-2.61666666667 -0.01" armature="0.0028" class="elbow" />
+                                        <site name="tracking[lhand]" class="tracking_site" pos="-0.001170918345 0.2492336035 0.008986026049" />
+                                        <body name="left_wrist" pos="-0.001170918345 0.2492336035 0.008986026049" euler="0 0 0">
+                                            <geom name="lwrist2lindex1" type="capsule" fromto="0 0 0 0.01935114339 0.1019018292 -0.008688151836"  size="0.006" />
+                                            <geom name="lwrist2lmiddle1" type="capsule" fromto="0 0 0 -0.00398080796 0.1093975306 -0.006327688694"  size="0.006" />
+                                            <geom name="lwrist2lpinky1" type="capsule" fromto="0 0 0 -0.04374960065 0.08404684067 -0.0145393312"  size="0.006" />
+                                            <geom name="lwrist2lring1" type="capsule" fromto="0 0 0 -0.02734463662 0.09744417667 -0.009267628193"  size="0.006" />
+                                            <geom name="lwrist2lthumb1" type="capsule" fromto="0 0 0 0.02561088279 0.0406357646 -0.01797673106"  size="0.006" />
+                                            
+                                            <joint name="l_wrist1" type="hinge" pos="0 0 0" axis="0 1 0" range="-3.141592 3.141592" stiffness="0" armature="0.02" />
+                                            <joint name="l_wrist2" type="hinge" pos="0 0 0" axis="0 0 1" range="-3.141592 3.141592" stiffness="0" armature="0.02" />
+                                            <joint name="l_wrist3" type="hinge" pos="0 0 0" axis="1 0 0" range="-3.141592 3.141592" stiffness="0" armature="0.02" />
+                                        
+                                            <body name="left_index1" pos="0.01935114339 0.1019018292 -0.008688151836" euler="0 0 0">
+                                                <geom name="lindex1-lindex2" type="capsule" fromto="0 0 0 0.001150548458 0.0301489234 -0.01115390658"  size="0.006" />
+                                                <body name="left_index2" pos="0.001150548458 0.0301489234 -0.01115390658" euler="0 0 0">
+                                                    <geom name="lindex2-lindex3" type="capsule" fromto="0 0 0 -0.00243325904 0.006504237652 -0.02157706022"  size="0.006" />
+                
+                                                    <body name="left_index3" pos="-0.00243325904 0.006504237652 -0.02157706022" euler="0 0 0">
+                                                        <!-- temporary geom value for finger tip -->
+                                                        <geom name="lindex3-lindextip" type="capsule" fromto="0 0 0 -0.002 0.006 -0.02"  size="0.006" />
+                                                        <body name="left_index4" pos="-0.002 0.006 -0.02" euler="0 0 0"/>
+                                                    </body>
+                                                </body>
+                                            </body>
+                                            <body name="left_middle1" pos="-0.00398080796 0.1093975306 -0.006327688694" euler="0 0 0">
+                                                <geom name="lmiddle1-lmiddle2" type="capsule" fromto="0 0 0 -0.004641152918 0.02647173405 -0.01521787047"  size="0.006" />
+                                        
+                                                <body name="left_middle2" pos="-0.004641152918 0.02647173405 -0.01521787047" euler="0 0 0">
+                                                    <geom name="lmiddle2-lmiddle3" type="capsule" fromto="0 0 0 -0.001911483705 0.005021989346 -0.02334663272"  size="0.006" />
+                                        
+                                                    <body name="left_middle3" pos="-0.001911483705 0.005021989346 -0.02334663272" euler="0 0 0">
+                                                        <geom name="lmiddl3-lmiddletip" type="capsule" fromto="0 0 0 -0.0019 0.005 -0.02"  size="0.006" />
+                                                        <body name="left_middle4" pos="-0.0019 0.005 -0.02" euler="0 0 0"/>
+                                                    </body>
+                                                </body>
+                                            </body>
+                                            <body name="left_ring1" pos="-0.02734463662 0.09744417667 -0.009267628193" euler="0 0 0">
+                                                <geom name="lring1-lring2" type="capsule" fromto="0 0 0 -0.001894921064 0.02356153727 -0.01605704427"  size="0.006" />
+                                                        
+                                                <body name="left_ring2" pos="-0.001894921064 0.02356153727 -0.01605704427" euler="0 0 0">
+                                                    <geom name="lring2-lring3" type="capsule" fromto="0 0 0 8.14124942e-4 0.004257023335 -0.0235479176"  size="0.006" />
+                                                        
+                                                    <body name="left_ring3" pos="8.14124942e-4 0.004257023335 -0.0235479176" euler="0 0 0">
+                                                        <geom name="lring3-lringtip" type="capsule" fromto="0 0 0 8.1e-4 0.004 -0.02"  size="0.006" />
+                                                        <body name="left_ring4" pos="8.1e-4 0.004 -0.02" euler="0 0 0"/>
+                                                    </body>
+                                                </body>
+                                            </body>
+                                            <body name="left_pinky1" pos="-0.04374960065 0.08404684067 -0.0145393312" euler="0 0 0">
+                                                <geom name="lpinky1-lpinky2" type="capsule" fromto="0 0 0 -0.005374751985 0.01212376356 -0.01444780827"  size="0.006" />
+                                                                                        
+                                                <body name="left_pinky2" pos="-0.005374751985 0.01212376356 -0.01444780827" euler="0 0 0">
+                                                    <geom name="lpinky2-lpinky3" type="capsule" fromto="0 0 0 1.66594982e-4 0.003798186779 -0.01885265112"  size="0.006" />
+                                                        
+                                                    <body name="left_pinky3" pos="1.66594982e-4 0.003798186779 -0.01885265112" euler="0 0 0">
+                                                        <geom name="lpinky3-lpinkytip" type="capsule" fromto="0 0 0 1.6e-4 0.003 -0.01"  size="0.006" />
+                                                        <body name="left_pinky4" pos="1.6e-4 0.003 -0.01" euler="0 0 0"/>
+                                                    </body>
+                                                </body>
+                                            </body>
+
+                                            <body name="left_thumb1" pos="0.02561088279 0.0406357646 -0.01797673106" euler="0 0 0">
+                                                <geom name="lthumb1-lthumb2" type="capsule" fromto="0 0 0 0.01162331179 0.02163672447 -0.01763927937"  size="0.006" />
+                                                                                                        
+                                                <body name="left_thumb2" pos="0.01162331179 0.02163672447 -0.01763927937" euler="0 0 0">
+                                                    <geom name="lthumb2-lthumb3" type="capsule" fromto="0 0 0 0.006547933444 0.02400177717 -0.008356153965"  size="0.006" />
+                                                                                                    
+                                                    <body name="left_thumb3" pos="0.006547933444 0.02400177717 -0.008356153965" euler="0 0 0">
+                                                        <geom name="lthumb3-lthumbtip" type="capsule" fromto="0 0 0 0.006 0.02 -0.008"  size="0.006" />
+                                                        <body name="left_thumb4" pos="0.006 0.02 -0.008" euler="0 0 0"/>
+                                                    </body>
+                                                </body>
+                                            </body>
+                                        </body>
+                                    </body>
+                                </body>
+                            </body>
+                                
+                                
+                            <geom name="spine2rcollar" type="capsule" fromto="0 0 0 -0.03408960626 -0.07884474564 0.1217493117"  size="0.04" />
+                            <body name="right_collar" pos="-0.03408960626 -0.07884474564 0.1217493117" euler="0 0 0">
+                                <geom name="rcollar2rshoulder" type="capsule" fromto="0 0 0 -0.008868150413 -0.09097691625 0.03046888113"  size="0.04" />
+                                
+                                <body name="right_shoulder" pos="-0.008868150413 -0.09097691625 0.03046888113" euler="0 0 0">
+                                    <geom name="rshoulder2relbow" type="capsule" fromto="0 0 0 -0.02745642886 -0.2596122175 -0.01277205348"  size="0.04" />
+                                    <joint name="r_shoulder1" type="hinge" pos="0 0 0" axis="1 0 0" range="-3.141592 3.141592" armature="0.0068" class="shoulder" />
+                                    <joint name="r_shoulder2" type="hinge" pos="0 0 0" axis="0 0 1" range="-3.141592 3.141592" armature="0.0051" class="shoulder" />
+                                    <joint name="r_shoulder3" type="hinge" pos="0 0 0" axis="0 1 0" range="-3.141592 3.141592" armature="0.0051" class="shoulder" />
+                                    
+                                    <body name="right_elbow" pos="-0.02745642886 -0.2596122175 -0.01277205348" euler="0 0 0">
+                                        <geom name="relbow2rwrist" type="capsule" fromto="0 0 0 -0.001170918345 -0.2492336035 0.008986026049"  size="0.04" />
+                                        <joint name="r_elbow" type="hinge" pos="0 0 0" axis="0 0 1" range="0.01 2.61666666667" armature="0.0028" class="elbow" />
+                                        <site name="tracking[rhand]" class="tracking_site" pos="-0.001170918345 -0.2492336035 0.008986026049" />
+                                        <body name="right_wrist" pos="-0.001170918345 -0.2492336035 0.008986026049" euler="0 0 0">
+                                            <geom name="rwrist2rindex1" type="capsule" fromto="0 0 0 0.0195999369 -0.09988051653 -0.0117828548"  size="0.006" />
+                                            <geom name="rwrist2rmiddle1" type="capsule" fromto="0 0 0 -0.003733821213 -0.1073763967 -0.009421944618"  size="0.006" />
+                                            <geom name="rwrist2rpinky1" type="capsule" fromto="0 0 0 -0.04350293428 -0.08202672005 -0.01763445139"  size="0.006" />
+                                            <geom name="rwrist2rring1" type="capsule" fromto="0 0 0 -0.02709873021 -0.09542346001 -0.01236194372"  size="0.006" />
+                                            <geom name="rwrist2rthumb1" type="capsule" fromto="0 0 0 0.02586134896 -0.03861314058 -0.02107441425"  size="0.006" />
+
+                                            <joint name="r_wrist1" type="hinge" pos="0 0 0" axis="0 1 0" range="-3.141592 3.141592" stiffness="0" armature="0.02" />
+                                            <joint name="r_wrist2" type="hinge" pos="0 0 0" axis="0 0 1" range="-3.141592 3.141592" stiffness="0" armature="0.02" />
+                                            <joint name="r_wrist3" type="hinge" pos="0 0 0" axis="1 0 0" range="-3.141592 3.141592" stiffness="0" armature="0.02" />
+                                            
+                                            <body name="right_index1" pos="0.0195999369 -0.09988051653 -0.0117828548" euler="0 0 0">
+                                                <geom name="rindex1-rindex2" type="capsule" fromto="0 0 0 0.001150920987 -0.03014850616 -0.01115420461"  size="0.006" />
+                                                    
+                                                <body name="right_index2" pos="0.001150920987 -0.03014850616 -0.01115420461" euler="0 0 0">
+                                                    <geom name="rindex2-rindex3" type="capsule" fromto="0 0 0 -0.002432338893 -0.006504833698 -0.02157700062"  size="0.006" />
+                                                    
+                                                    <body name="right_index3" pos="-0.002432338893 -0.006504833698 -0.02157700062" euler="0 0 0">
+                                                        <geom name="rindex3-rindextip" type="capsule" fromto="0 0 0 -0.002 -0.006 -0.02"  size="0.006" />
+                                                        <body name="right_index4" pos="-0.002 -0.006 -0.02" euler="0 0 0"/>
+                                                    </body>
+
+                                                </body>
+                                            </body>
+
+                                            <body name="right_middle1" pos="-0.003733821213 -0.1073763967 -0.009421944618" euler="0 0 0">
+                                                <geom name="rmiddle1-rmiddle2" type="capsule" fromto="0 0 0 -0.004641346633 -0.02647179365 -0.01521787047"  size="0.006" />
+                                                    
+                                                <body name="right_middle2" pos="-0.004641346633 -0.02647179365 -0.01521787047" euler="0 0 0">
+                                                    <geom name="rmiddle2-rmiddle3" type="capsule" fromto="0 0 0 -0.001911155879 -0.005021512508 -0.02334678173"  size="0.006" />
+                                                    
+                                                    <body name="right_middle3" pos="-0.001911155879 -0.005021512508 -0.02334678173" euler="0 0 0">
+                                                        <geom name="rmiddle3-rmiddletip" type="capsule" fromto="0 0 0 -0.001 -0.005 -0.02"  size="0.006" />
+                                                        <body name="right_middle4" pos="-0.001 -0.005 -0.02" euler="0 0 0"/>
+                                                    </body>
+                                                </body>
+                                            </body>
+
+                                            <body name="right_ring1" pos="-0.02709873021 -0.09542346001 -0.01236194372" euler="0 0 0">
+                                                <geom name="rring1-rring2" type="capsule" fromto="0 0 0 -0.001894876361 -0.02356100082 -0.01605695486"  size="0.006" />
+                                                    
+                                                <body name="right_ring2" pos="-0.001894876361 -0.02356100082 -0.01605695486" euler="0 0 0">
+                                                    <geom name="rring2-rring3" type="capsule" fromto="0 0 0 8.15756619e-4 -0.004256904125 -0.02354767919"  size="0.006" />
+                                                    
+                                                    <body name="right_ring3" pos="8.15756619e-4 -0.004256904125 -0.02354767919" euler="0 0 0">
+                                                        <geom name="rring3-rringtip" type="capsule" fromto="0 0 0 8.1e-4 -0.004 -0.02"  size="0.006" />
+                                                        <body name="right_ring4" pos="8.1e-4 -0.004 -0.02" euler="0 0 0"/>
+                                                    </body>
+                                                </body>
+                                            </body>
+
+                                            <body name="right_pinky1" pos="-0.04350293428 -0.08202672005 -0.01763445139" euler="0 0 0">
+                                                <geom name="rpinky1-rpinky2" type="capsule" fromto="0 0 0 -0.005374066532 -0.01212316751 -0.01444762945"  size="0.006" />
+                                                    
+                                                <body name="right_pinky2" pos="-0.005374066532 -0.01212316751 -0.01444762945" euler="0 0 0">
+                                                    <geom name="rpinky2-rpinky3" type="capsule" fromto="0 0 0 1.67131424e-4 -0.00379806757 -0.01885226369"  size="0.006" />
+                                                    
+                                                    <body name="right_pinky3" pos="1.67131424e-4 -0.00379806757 -0.01885226369" euler="0 0 0">
+                                                        <geom name="rpinky3-rpinkytip" type="capsule" fromto="0 0 0 1.6e-4 -0.003 -0.018"  size="0.006" />
+                                                        <body name="right_pinky4" pos="1.6e-4 -0.003 -0.018" euler="0 0 0"/>
+                                                    </body>
+                                                </body>
+                                            </body>
+
+                                            <body name="right_thumb1" pos="0.02586134896 -0.03861314058 -0.02107441425" euler="0 0 0">
+                                                <geom name="rthumb1-rthumb2" type="capsule" fromto="0 0 0 0.01162325218 -0.02163636684 -0.01763868332"  size="0.006" />
+                                                <body name="right_thumb2" pos="0.01162325218 -0.02163636684 -0.01763868332" euler="0 0 0">
+                                                    <geom name="rthumb2-rthumb3" type="capsule" fromto="0 0 0 0.006546743214 -0.02400374413 -0.008353203535"  size="0.006" />
+                                                    
+                                                    <body name="right_thumb3" pos="0.006546743214 -0.02400374413 -0.008353203535" euler="0 0 0">
+                                                        <geom name="rthumb3-rthumbtip" type="capsule" fromto="0 0 0 0.006 -0.02 -0.008"  size="0.006" />
+                                                        <body name="right_thumb4" pos="0.006 -0.02 -0.008" euler="0 0 0"/>
+                                                    </body>
+                                                </body>
+                                            </body>
+                                        </body>
+                                    </body>
+                                </body>
+                            </body>
+                        </body>
+                    </body>           
+                </body>
+            </body>
+            <site name="tracking[pelvis]" class="tracking_site" pos="0 0 0.075" size=".05" />
+            <geom name="base2lpelvis" type="capsule" fromto="0 0 0 -0.006815334782004356 0.06951973587274551 -0.09140622615814209"  size="0.04" />
+            <geom name="base2rpelvis" type="capsule" fromto="0 0 0 -0.004319818690419197 -0.06767047941684723 -0.09052169322967529"  size="0.04" />
+            <site name="pelvis_site" pos="0 0 0" size="0.01"/>
+
+            
+            <body name="left_pelvis" pos="-0.006815334782004356 0.06951973587274551 -0.09140622615814209" euler="0 0 0">
+                <geom name="lpelvis2lknee" type="capsule" fromto="0 0 0 -0.004495806992 0.03427654505 -0.3751985729"  size="0.04" />
+                <site name="lpelvis2lknee" type="capsule" fromto="0 0 0 -0.004495806992 0.03427654505 -0.3751985729"  size="0.04" />
+                <joint name="l_pelvis1" type="hinge" pos="0 0 0" axis="1 0 0" range="-0.6 0.6" armature="0.01" class="hip_x"/>
+                <joint name="l_pelvis2" type="hinge" pos="0 0 0" axis="0 1 0" range="-1.5 0.6" armature="0.01" class="hip_y"/>
+                <joint name="l_pelvis3" type="hinge" pos="0 0 0" axis="0 0 1" range="-0.6 0.6" armature="0.01" class="hip_z"/>
+                <body name="left_knee" pos="-0.004495806992 0.03427654505 -0.3751985729" euler="0 0 0">
+                    <geom name="lknee2lankle" type="capsule" fromto="0 0 0 -0.04369332828 -0.01359570026 -0.3979604542"  size="0.04" />
+                    <site name="lknee2lankle" type="capsule" fromto="0 0 0 -0.04369332828 -0.01359570026 -0.3979604542"  size="0.04" />
+                    <joint name="l_knee" type="hinge" pos="0 0 0" axis="0 1 0" range="0.0175 2.0944" armature="0.0060" class="knee"/>
+                    <body name="left_ankle" pos="-0.04369332828 -0.01359570026 -0.3979604542" euler="0 0 0">
+                        <!-- <geom name="lankle" type="box" pos="0 0 -0.025" size="0.03 0.03 0.025" /> -->
+                        <site name="lankle" type="box" pos="0 0 -0.025" size="0.03 0.03 0.025" />
+                        <!-- <geom name="lfoot" type="box" pos="0.03 0 -0.05" size="0.1 0.05 0.015" /> -->
+                        <geom name="foot1_left" class="foot1"/>
+                        <geom name="foot2_left" class="foot2"/>
+
+                        <site name="foot_left" pos=".05 -.03 -0.05" type="sphere" rgba="0 1 0 1"  size=".027"/>
+                        <site name="sp0" pos="-.07 0 -0.05" type="sphere" size=".027"/>
+                        <site name="sp1" pos=".14 0 -0.05" type="sphere" size=".027"/>
+                        <joint name="l_ankle1" type="hinge" pos="0 0 0" axis="0 1 0" range="-1.3 1.3"  armature="0.0008" class="ankle_y"/>
+                        <joint name="l_ankle2" type="hinge" pos="0 0 0" axis="1 0 0" range="-1.3 1.3" armature="0.0006" class="ankle_x"/>
+                        <joint name="l_ankle3" type="hinge" pos="0 0 0" axis="0 0 1" range="-1.3 1.3" armature="0.0006" />
+                    </body>
+                </body>
+            </body>
+
+            <body name="right_pelvis" pos="-0.006815334782004356 -0.06951973587274551 -0.09140622615814209" euler="0 0 0">
+                <geom name="rpelvis2rknee" type="capsule" fromto="0 0 0 -0.004495806992 -0.03427654505 -0.3751985729"  size="0.04" />
+                <site name="rpelvis2rknee" type="capsule" fromto="0 0 0 -0.004495806992 -0.03427654505 -0.3751985729"  size="0.04" />
+                <joint name="r_pelvis1" type="hinge" pos="0 0 0" axis="1 0 0" range="-0.6 0.6" armature="0.01" class="hip_x"/>
+                <joint name="r_pelvis2" type="hinge" pos="0 0 0" axis="0 1 0" range="-1.5 0.6" armature="0.01" class="hip_y"/>
+                <joint name="r_pelvis3" type="hinge" pos="0 0 0" axis="0 0 1" range="-0.6 0.6" armature="0.01" class="hip_z"/>
+                <body name="right_knee" pos="-0.004495806992 -0.03427654505 -0.3751985729" euler="0 0 0" >
+                    <geom name="rknee2rankle" type="capsule" fromto="0 0 0 -0.04369332828 0.01359570026 -0.3979604542"  size="0.04" />
+                    <site name="rknee2rankle" type="capsule" fromto="0 0 0 -0.04369332828 0.01359570026 -0.3979604542"  size="0.04" />
+                    <joint name="r_knee" type="hinge" pos="0 0 0" axis="0 1 0" range="0.0175 2.0944" armature="0.0060" class="knee"/>
+                    <body name="right_ankle" pos="-0.04369332828 0.01359570026 -0.3979604542" euler="0 0 0">
+                        <!-- <geom name="rankle" type="box" pos="0 0 -0.025" size="0.03 0.03 0.025" /> -->
+                        <site name="rankle" type="box" pos="0 0 -0.025" size="0.03 0.03 0.025" />
+                        <!-- <geom name="rfoot" type="box" pos="0.03 0 -0.05" size="0.1 0.05 0.015" /> -->
+                        <geom name="foot1_right" class="foot1"/>
+                        <geom name="foot2_right" class="foot2"/>
+
+                        <site name="foot_right" pos=".05 .03 -0.05" type="sphere" size=".027" rgba="0 1 0 1" />
+                        <site name="sp2" pos="-.07 0 -0.05" type="sphere" size=".027"/>
+                        <site name="sp3" pos=".14 0 -0.05" type="sphere" size=".027"/>
+                        <joint name="r_ankle1" type="hinge" pos="0 0 0" axis="0 1 0" range="-1.3 1.3" armature="0.0008" class="ankle_y"/>
+                        <joint name="r_ankle2" type="hinge" pos="0 0 0" axis="1 0 0" range="-1.3 1.3" armature="0.0006" class="ankle_x"/>
+                        <joint name="r_ankle3" type="hinge" pos="0 0 0" axis="0 0 1" range="-1.3 1.3" armature="0.0006" />
+                    </body>
+                </body>
+            </body>
+        </body>
+    </worldbody>
+
+    <actuator>
+        <!-- [1] ~ [4] -->
+        <motor name="root1"       gear="120" joint="root1" />
+        <motor name="root2"       gear="120" joint="root2" />
+        <motor name="root3"       gear="120" joint="root3" />
+        <motor name="spine1"       gear="120" joint="spine1" />
+        <motor name="spine2"       gear="120" joint="spine2" />
+        <motor name="spine3"       gear="120" joint="spine3" />
+        <!-- [33] ~ [35] -->
+        <motor name="head1"       gear="120" joint="head1" />
+        <motor name="head2"       gear="120" joint="head2" />
+        <motor name="head3"       gear="120" joint="head3" />
+
+        <!-- [12] ~ [18] -->
+        <!-- <motor name="l_collar1"       gear="100" joint="l_collar1" />
+        <motor name="l_collar2"       gear="100" joint="l_collar2" />
+        <motor name="l_collar3"       gear="100" joint="l_collar3" /> -->
+        <motor name="l_shoulder1"       gear="120" joint="l_shoulder1" />
+        <motor name="l_shoulder2"       gear="120" joint="l_shoulder2" />
+        <motor name="l_shoulder3"       gear="120" joint="l_shoulder3" />
+        <motor name="l_elbow"       gear="120" joint="l_elbow" />
+        <motor name="l_wrist1"       gear="120" joint="l_wrist1" />
+        <motor name="l_wrist2"       gear="120" joint="l_wrist2" />
+        <motor name="l_wrist3"       gear="120" joint="l_wrist3" />
+        
+        <!-- [5] ~ [11] -->
+        <!-- <motor name="r_collar1"       gear="100" joint="r_collar1" />
+        <motor name="r_collar2"       gear="100" joint="r_collar2" />
+        <motor name="r_collar3"       gear="100" joint="r_collar3" /> -->
+
+        <motor name="r_shoulder1"       gear="120" joint="r_shoulder1" />
+        <motor name="r_shoulder2"       gear="120" joint="r_shoulder2" />
+        <motor name="r_shoulder3"       gear="120" joint="r_shoulder3" />
+        <motor name="r_elbow"       gear="120" joint="r_elbow" />
+        <motor name="r_wrist1"       gear="120" joint="r_wrist1" />
+        <motor name="r_wrist2"       gear="120" joint="r_wrist2" />
+        <motor name="r_wrist3"       gear="120" joint="r_wrist3" />
+        
+
+        <!-- [26] ~ [32] -->
+        <motor name="l_pelvis1"       gear="120" joint="l_pelvis1" />
+        <motor name="l_pelvis2"       gear="120" joint="l_pelvis2" />
+        <motor name="l_pelvis3"       gear="120" joint="l_pelvis3" />
+        <motor name="l_knee"       gear="120" joint="l_knee" />
+        <motor name="l_ankle1"       gear="120" joint="l_ankle1" />
+        <motor name="l_ankle2"       gear="120" joint="l_ankle2" />
+        <motor name="l_ankle3"       gear="120" joint="l_ankle3" />
+
+        <!-- [19] ~ [25] -->
+        <motor name="r_pelvis1"       gear="120" joint="r_pelvis1" />
+        <motor name="r_pelvis2"       gear="120" joint="r_pelvis2" />
+        <motor name="r_pelvis3"       gear="120" joint="r_pelvis3" />
+        <motor name="r_knee"       gear="120" joint="r_knee" />
+        <motor name="r_ankle1"       gear="120" joint="r_ankle1" />
+        <motor name="r_ankle2"       gear="120" joint="r_ankle2" />
+        <motor name="r_ankle3"       gear="120" joint="r_ankle3" />
+    </actuator>
+
+    <!-- exclude -->
+    <contact>
+        <exclude body1="neck" body2="right_shoulder"/>
+        <exclude body1="neck" body2="right_collar"/>
+        <exclude body1="spine3" body2="right_shoulder"/>
+        <exclude body1="spine3" body2="right_collar"/>
+        <exclude body1="right_shoulder" body2="right_elbow"/>
+        <exclude body1="right_elbow" body2="right_wrist"/>
+        
+        <exclude body1="neck" body2="spine3"/>
+        <exclude body1="spine2" body2="spine3"/>
+        <exclude body1="spine1" body2="spine2"/>
+        <exclude body1="spine1" body2="spine3"/>
+        <exclude body1="neck" body2="spine2"/>
+
+        <exclude body1="neck" body2="left_shoulder"/>
+        <exclude body1="neck" body2="left_collar"/>
+        <exclude body1="spine3" body2="left_shoulder"/>
+        <exclude body1="spine3" body2="left_collar"/>
+        <exclude body1="left_shoulder" body2="left_elbow"/>
+        <exclude body1="left_elbow" body2="left_wrist"/>
+
+        <exclude body1="neck" body2="spine3"/>
+        <exclude body1="spine1" body2="root"/>
+        <exclude body1="root" body2="base"/>
+
+        <exclude body1="base" body2="right_pelvis"/>
+        <exclude body1="root" body2="right_pelvis"/>
+        <!-- <exclude body1="right_leg" body2="base"/>
+        <exclude body1="right_leg" body2="pelvis"/>
+        <exclude body1="right_leg" body2="right_hip"/> -->
+        <exclude body1="right_pelvis" body2="right_knee"/>
+        <exclude body1="right_knee" body2="right_ankle"/>
+
+        <!-- <exclude body1="right_leg" body2="left_leg"/> -->
+
+        <exclude body1="base" body2="left_pelvis"/>
+        <exclude body1="root" body2="left_pelvis"/>
+        <!-- <exclude body1="left_leg" body2="base"/>
+        <exclude body1="left_leg" body2="pelvis"/>
+        <exclude body1="left_leg" body2="left_hip"/> -->
+        <exclude body1="left_pelvis" body2="left_knee"/>
+        <exclude body1="left_knee" body2="left_ankle"/>
+    </contact>
+
+</mujoco>
