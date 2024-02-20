@@ -129,14 +129,14 @@ class MotionLib():
             root_rot1[ids, :]  = curr_motion.global_rotation[frame_idx1[ids], 0].numpy()
 
             # TODO: l5vd5 qpos
-            local_qpos0[ids, :] = curr_motion.q_pos[frame_idx0[ids]]
-            local_qpos1[ids, :] = curr_motion.q_pos[frame_idx1[ids]]
+            local_qpos0[ids, :] = curr_motion.qpos[frame_idx0[ids]]
+            local_qpos1[ids, :] = curr_motion.qpos[frame_idx1[ids]]
 
             root_vel[ids, :] = curr_motion.global_root_velocity[frame_idx0[ids]].numpy()
             root_ang_vel[ids, :] = curr_motion.global_root_angular_velocity[frame_idx0[ids]].numpy()
             
-            key_pos0[ids, :, :] = curr_motion.global_translation[frame_idx0[ids][:, np.newaxis], self._key_body_ids[np.newaxis, :]].numpy()
-            key_pos1[ids, :, :] = curr_motion.global_translation[frame_idx1[ids][:, np.newaxis], self._key_body_ids[np.newaxis, :]].numpy()
+            key_pos0[ids, :, :] = curr_motion.xpos[frame_idx0[ids][:, np.newaxis], self._key_body_ids[np.newaxis, :]].numpy()
+            key_pos1[ids, :, :] = curr_motion.xpos[frame_idx1[ids][:, np.newaxis], self._key_body_ids[np.newaxis, :]].numpy()
 
             dof_vel[ids, :] = curr_motion.dof_vels[frame_idx0[ids]]
 
@@ -243,7 +243,7 @@ class MotionLib():
             curr_file = motion_files[0]
             print("Loading {:d}/{:d} motion files: {:s}".format(f + 1, sampled_trajs.shape[0], curr_file))
             curr_motion = SkeletonMotion.from_file(curr_file)
-            curr_motion.set_q_pos(sampled_trajs[f])
+            curr_motion.qpos = sampled_trajs[f]
             motion_fps = curr_motion.fps
             curr_dt = 1.0 / motion_fps
 
@@ -327,9 +327,9 @@ class MotionLib():
         dof_vels = []
 
         for f in range(num_frames - 1):
-            q_pos0 = motion.q_pos[f]
-            q_pos1 = motion.q_pos[f+1]
-            dof_vel = (q_pos1 - q_pos0) / dt
+            qpos0 = motion.qpos[f]
+            qpos1 = motion.qpos[f+1]
+            dof_vel = (qpos1 - qpos0) / dt
             dof_vels.append(dof_vel)
 
         dof_vels.append(dof_vels[-1])

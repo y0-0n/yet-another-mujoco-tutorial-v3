@@ -1073,15 +1073,17 @@ class SkeletonState(Serializable):
 
 class SkeletonMotion(SkeletonState):
     def __init__(self, tensor_backend, skeleton_tree, is_local, fps, 
-                 q_pos,
+                 qpos, quat_joints, xpos,
                 *args, **kwargs):
         self._fps = fps
-        self._q_pos = q_pos
+        self._qpos = qpos
+        self._quat_joints = quat_joints
+        self._xpos = xpos
         super().__init__(tensor_backend, skeleton_tree, is_local, *args, **kwargs)
 
     def clone(self):
         return SkeletonMotion(
-            self.tensor.clone(), self.skeleton_tree, self._is_local, self._fps, self._q_pos,
+            self.tensor.clone(), self.skeleton_tree, self._is_local, self._fps, self._qpos, self._quat_joints, self._xpos,
         )
 
     @property
@@ -1114,12 +1116,32 @@ class SkeletonMotion(SkeletonState):
         return self._fps
     
     @property
-    def q_pos(self):
+    def qpos(self):
         """ q position """
-        return self._q_pos
+        return self._qpos
 
-    def set_q_pos(self, q_pos):
-        self._q_pos = q_pos
+    @qpos.setter
+    def qpos(self, qpos):
+        self._qpos = qpos
+
+    @property
+    def quat_joints(self):
+        """ rotation (quaternion) of each joint """
+        return self._quat_joints
+
+    @quat_joints.setter
+    def quat_joints(self, quat_joints):
+        self._quat_joints = quat_joints
+
+    @property
+    def xpos(self):
+        """ q position """
+        return self._xpos
+
+    @xpos.setter
+    def xpos(self, xpos):
+        self._xpos = xpos
+
 
     @property
     def time_delta(self):
@@ -1232,7 +1254,9 @@ class SkeletonMotion(SkeletonState):
             ),
             is_local=dict_repr["is_local"],
             fps=dict_repr["fps"],
-            q_pos=dict_repr["q_pos"]
+            qpos=dict_repr["qpos"],
+            quat_joints=dict_repr["quat_joints"],
+            xpos=dict_repr["xpos"],
         )
 
     def to_dict(self) -> OrderedDict:
