@@ -29,8 +29,8 @@ def t2pr(T):
     """
         T to p and R
     """   
-    p = T[:3,3]
-    R = T[:3,:3]
+    p = T[...,:3,3]
+    R = T[...,:3,:3]
     return p,R
 
 def t2p(T):
