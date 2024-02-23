@@ -218,6 +218,7 @@ class AMPAgent(common_agent.CommonAgent):
         mb_rewards = self.experience_buffer.tensor_dict['rewards']
         mb_amp_obs = self.experience_buffer.tensor_dict['amp_obs']
         amp_rewards = self._calc_amp_rewards(mb_amp_obs)
+        # amp_rewards = self._calc_deepmimic_rewards(mb_amp_obs, motion_time)
         mb_rewards = self._combine_rewards(mb_rewards, amp_rewards)
 
         mb_advs = self.discount_values(mb_fdones, mb_values, mb_rewards, mb_next_values)
@@ -580,6 +581,14 @@ class AMPAgent(common_agent.CommonAgent):
             'disc_rewards': disc_r
         }
         return output
+    
+    def _calc_deepmimic_rewards(self, deepmimic_obs, motion_times):
+        motion_lib = self.vec_env.env._motion_lib
+        motion_ids = motion_lib.sample_motions(1)
+        # motion_times = motion_lib.sample_time(motion_ids)
+        root_pos, root_rot, dof_pos, root_vel, root_ang_vel, dof_vel, key_pos \
+            = motion_lib.get_motion_state(motion_ids, motion_times)
+
 
     def _calc_disc_rewards(self, amp_obs):
         with torch.no_grad():

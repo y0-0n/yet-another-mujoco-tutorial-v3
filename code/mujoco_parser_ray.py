@@ -371,7 +371,8 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
         return result_dict
     
         # def pd_step_loop(self,model,running_mean_std,value_mean_std,ctrl_idxs=None,nstep=1,INCREASE_TICK=True):
-    def step_loop(self,ray_dict,ctrl_idxs=None,nstep=1,INCREASE_TICK=True):
+    
+    def step_loop(self,ray_dict,ctrl_idxs=None,nstep=1,INCREASE_TICK=True,test=False):
         # from amp.tasks.amp.common_rig_amp_base import compute_humanoid_reward
         from amp.tasks.smpl_rig_amp import build_amp_observations
         from amp.tasks.amp.smpl_rig_amp_base import compute_humanoid_reset2
@@ -385,12 +386,12 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
 
         # self._model,self.running_mean_std,self.value_mean_std = ray_dict['model'],ray_dict['running_mean_std'],ray_dict['value_mean_std']
         self._model.load_state_dict(ray_dict['model'])
-        self.running_mean_std.load_state_dict(ray_dict['running_mean_std'])
-        self.value_mean_std.load_state_dict(ray_dict['value_mean_std'])
-
         # eval running mean std (updated outside ray worker after rollout)
         self.running_mean_std.eval()
-        self.value_mean_std.eval()
+        self.running_mean_std.load_state_dict(ray_dict['running_mean_std'])
+        if not test:
+            self.value_mean_std.load_state_dict(ray_dict['value_mean_std'])
+            self.value_mean_std.eval()
 
         res_dicts = []
         i = 0 # TODO: i -> 0
@@ -402,7 +403,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
         # self.key_body_pos[0] = self.rigid_body_pos[:, self._key_body_ids, :]
 
         
-
+        trgt = None
         for n in range(self.horizon_length):
             # reset actor
             # self.obs, done_env_ids = self._env_reset_done()
@@ -441,9 +442,13 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
             }
             with torch.no_grad():
                 self.res_dict = self._model(input_dict)
-            self.res_dict['values'] = self.value_mean_std(self.res_dict['values'], True)
             # Not PD control
-            trgt = self.res_dict['actions']
+            
+            if not test:
+                self.res_dict['values'] = self.value_mean_std(self.res_dict['values'], True)
+                trgt = self.res_dict['actions'] # Stochastic
+            else:
+                trgt = self.res_dict['mus'] # Deterministic
 
             super().step(ctrl=trgt,nstep=nstep,ctrl_idxs=ctrl_idxs,INCREASE_TICK=INCREASE_TICK)
             
