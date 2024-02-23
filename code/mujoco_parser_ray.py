@@ -74,6 +74,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
         self.amp_obses = torch.zeros((self.horizon_length,self.obs.shape[-1]), device=self.device) #[]
         self.prev_amp_obses = torch.zeros_like(self.amp_obses, device=self.device) #[]
         self.prev_obses = torch.zeros_like(self.obses, device=self.device)
+        self.motion_times = torch.zeros_like(self.terminates, device=self.device)
         # for res_dict
         self.neglogpacs = torch.zeros((self.horizon_length,), device=self.device) #[]
         self.values = torch.zeros((self.horizon_length,), device=self.device)
@@ -474,6 +475,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
             self.dof_vel[0] = torch.from_numpy(self.get_qvels())
             self.key_body_pos[0] = self.rigid_body_pos[:, self._key_body_ids, :]
             amp_obs = build_amp_observations(self.root_states, self.dof_pos, self.dof_vel, self.key_body_pos, False)[0]
+            # motion_times += self.dt
 
             # actor_root_states[n] = root_states# actor_root_states.append(root_states)
             # dof_poses[n] = dof_pos# dof_poses.append(dof_pos)
@@ -493,6 +495,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
             self.actions[n] = self.res_dict['actions']
             self.mus[n] = self.res_dict['mus']
             self.sigmas[n] = self.res_dict['sigmas']
+            # self.motion_times[n] = torch.from_numpy(motion_times)
 
         result_dict = {
             # "actor_root_states" : actor_root_states,
@@ -516,6 +519,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
             "prev_amp_obses": self.prev_amp_obses,
             "running_mean_std": self.running_mean_std,
             "value_mean_std": self.value_mean_std,
+            "motion_times": self.motion_times
         }
         return result_dict
 

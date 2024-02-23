@@ -291,6 +291,8 @@ class VecTask(Env):
         self.actions = torch.zeros((self.num_envs, self.horizon_length,self.num_actions), device=self.device)
         self.mus = torch.zeros((self.num_envs, self.horizon_length,self.num_actions), device=self.device)
         self.sigmas = torch.zeros((self.num_envs, self.horizon_length,self.num_actions), device=self.device)
+        self.motion_times = torch.zeros(
+            (self.num_envs, self.horizon_length), device=self.device, dtype=torch.float)
 
         self.extras = {}
 
@@ -432,6 +434,7 @@ class VecTask(Env):
             self.sigmas[i] = res['sigmas']
             self._terminate_buf[i] = res['terminates']
             self.prev_obses[i] = res['prev_obses'].to(self.device) # yoon0-0
+            self.motion_times[i] = res['motion_times']
 
         # reset device (cannot be detached)
         model.cuda()
@@ -460,6 +463,7 @@ class VecTask(Env):
         self.extras["res_dicts"] = res_dicts
         self.extras["amp_obs"] = self.amp_obs_buf
         self.extras["prev_obses"] = self.prev_obses
+        self.extras["motion_times"] = self.motion_times
         # self.extras["prev_amp_obs"] = self.prev_amp_obs
 
         # asymmetric actor-critic

@@ -80,6 +80,8 @@ class MuJoCoParserClass(object):
         self.ctrl_joint_idxs = []
         self.ctrl_joint_names = []
         for ctrl_idx in range(self.n_ctrl):
+            if self.model.actuator(self.ctrl_names[ctrl_idx]).trntype == 3:
+                continue
             transmission_idx = self.model.actuator(self.ctrl_names[ctrl_idx]).trnid # transmission index
             joint_idx = self.model.jnt_qposadr[transmission_idx][0] # index of the joint when the actuator acts on a joint
             self.ctrl_joint_idxs.append(joint_idx)
@@ -87,6 +89,8 @@ class MuJoCoParserClass(object):
         self.ctrl_qpos_idxs = self.ctrl_joint_idxs
         self.ctrl_qvel_idxs = []
         for ctrl_idx in range(self.n_ctrl):
+            if self.model.actuator(self.ctrl_names[ctrl_idx]).trntype == 3:
+                continue
             transmission_idx = self.model.actuator(self.ctrl_names[ctrl_idx]).trnid # transmission index
             joint_idx = self.model.jnt_dofadr[transmission_idx][0] # index of the joint when the actuator acts on a joint
             self.ctrl_qvel_idxs.append(joint_idx)
