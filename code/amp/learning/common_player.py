@@ -32,6 +32,7 @@ from rl_games.algos_torch import players
 from rl_games.algos_torch import torch_ext
 from rl_games.algos_torch.running_mean_std import RunningMeanStd
 from rl_games.common.player import BasePlayer
+import ray
 
 class CommonPlayer(players.PpoPlayerContinuous):
     def __init__(self, config):
@@ -44,9 +45,20 @@ class CommonPlayer(players.PpoPlayerContinuous):
         self.normalize_input = self.config['normalize_input']
         
         net_config = self._build_net_config()
-        self._build_net(net_config)   
+        self._build_net(net_config)
+
+        # ray yoon0-0
+        for env in self.env.mujoco_envs:
+            env.init_models.remote(model=self.model.to('cpu'),running_mean_std=self.running_mean_std.to('cpu'),value_mean_std=None)
         
         return
+
+    def env_step(self):
+        obs, rewards, dones, infos = self.env.step(self.model, self.running_mean_std, None, test=True)
+
+        if self.value_size == 1:
+            rewards = rewards.unsqueeze(2)
+        return obs, rewards, dones, infos
 
     def run(self):
         n_games = self.games_num
@@ -74,8 +86,8 @@ class CommonPlayer(players.PpoPlayerContinuous):
                 break
 
             obs_dict = self.env_reset(self.env)
-            batch_size = 1
-            batch_size = self.get_batch_size(obs_dict['obs'], batch_size)
+            batch_size = self.config['horizon_length']
+            # batch_size = self.get_batch_size(obs_dict['obs'], batch_size)
 
             if need_init_rnn:
                 self.init_rnn()
@@ -88,25 +100,9 @@ class CommonPlayer(players.PpoPlayerContinuous):
 
             self.obs, rewards, self.dones, infos = self.env_step()
 
-            for n, (obs, reward, done, amp_obs, terminate, prev_obs) in enumerate(zip(self.obs['obs'], rewards, self.dones, infos['amp_obs'], infos['terminate'], infos['prev_obs'])):
-
-            # for n in range(self.max_steps):
-                # obs_dict, done_env_ids = self._env_reset_done()
-
-                # if has_masks:
-                #     masks = self.env.get_action_mask()
-                #     action = self.get_masked_action(obs_dict, masks, is_determenistic)
-                # else:
-                #     action = self.get_action(obs_dict, is_determenistic)
-                # obs_dict, r, done, info =  self.env_step(self.env, action)
-                cr += reward
+            for n, (reward, done) in enumerate(zip(rewards, self.dones)):
+                cr += reward.squeeze()
                 steps += 1
-  
-                # self._post_step(info)
-
-                # if render:
-                #     self.env.render(mode = 'human')
-                #     time.sleep(self.render_sleep)
 
                 all_done_indices = done.nonzero(as_tuple=False)
                 done_indices = all_done_indices[::self.num_agents]

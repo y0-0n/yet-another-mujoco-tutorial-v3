@@ -591,22 +591,12 @@ class MyoSuiteAMPBase(VecTask):
         return
 
     def _build_key_body_ids_tensor(self):
-        body_ids = []
-        for body_name in KEY_BODY_NAMES:
-            body_id = self.standard_env.model.body(body_name).id - 1 # worldbody is the first body
-            assert(body_id != -1)
-            body_ids.append(body_id)
-
+        body_ids = self.standard_env.get_body_ids(KEY_BODY_NAMES)
         body_ids = to_torch(body_ids, device=self.device, dtype=torch.long)
         return body_ids
 
     def _build_contact_body_ids_tensor(self):
-        body_ids = []
-        for body_name in self._contact_bodies:
-            body_id = self.standard_env.model.body(body_name).id - 1 # worldbody is the first body
-            assert(body_id != -1)
-            body_ids.append(body_id)
-
+        body_ids = self.standard_env.get_body_ids(self._contact_bodies)
         body_ids = to_torch(body_ids, device=self.device, dtype=torch.long)
         return body_ids
 

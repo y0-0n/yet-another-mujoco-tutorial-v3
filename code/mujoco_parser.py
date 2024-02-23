@@ -800,6 +800,16 @@ class MuJoCoParserClass(object):
         body_names = [x for x in self.body_names if x[:len(prefix)]==prefix]
         return body_names
 
+    def get_body_ids(self, body_names):
+        body_ids = []
+        for body_name in body_names:
+            body_id = self.model.body(body_name).id - 1 # worldbody is the first body
+            assert(body_id != -1)
+            body_ids.append(body_id)
+
+        return body_ids
+    
+
     def get_contact_info(self,must_include_prefix=None,must_exclude_prefix=None):
         """
             Get contact information

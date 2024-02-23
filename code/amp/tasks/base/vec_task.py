@@ -386,7 +386,7 @@ class VecTask(Env):
 
         return self.obs_dict, self.rew_buf.to(self.rl_device), self.reset_buf.to(self.rl_device), self.extras
     
-    def step(self, model, running_mean_std, value_mean_std) -> Tuple[Dict[str, torch.Tensor], torch.Tensor, torch.Tensor, Dict[str, Any]]:
+    def step(self, model, running_mean_std, value_mean_std, test=False) -> Tuple[Dict[str, torch.Tensor], torch.Tensor, torch.Tensor, Dict[str, Any]]:
         """Step the physics of the environment.
 
         Args:
@@ -400,15 +400,22 @@ class VecTask(Env):
         # if self.dr_randomizations.get('actions', None):
         #     actions = self.dr_randomizations['actions']['noise_lambda'](actions)
 
-        ray_dict = {'model': model.cpu().state_dict(),
-            'running_mean_std': running_mean_std.cpu().state_dict(),
-            'value_mean_std': value_mean_std.cpu().state_dict(),
-            }
+        if not test:
+            ray_dict = {'model': model.cpu().state_dict(),
+                'running_mean_std': running_mean_std.cpu().state_dict(),
+                'value_mean_std': value_mean_std.cpu().state_dict(),
+                }
+        else:
+            ray_dict = {'model': model.cpu().state_dict(),
+                'running_mean_std': running_mean_std.cpu().state_dict(),
+                # 'value_mean_std': value_mean_std.cpu().state_dict(),
+                }
         
         # yoon0-0: [step_loop, pd_step_loop]
         rollouts = [env.step_loop.remote(
             ray_dict=ray_dict,
-            nstep=1
+            nstep=1,
+            test=True
             # model=model.to('cpu'),running_mean_std=running_mean_std.to('cpu'),value_mean_std=value_mean_std.to('cpu')
             ) for env in self.mujoco_envs]
 
@@ -437,9 +444,10 @@ class VecTask(Env):
             self.motion_times[i] = res['motion_times']
 
         # reset device (cannot be detached)
-        model.cuda()
-        running_mean_std.cuda()
-        value_mean_std.cuda()
+        if not test:
+            model.cuda()
+            running_mean_std.cuda()
+            value_mean_std.cuda()
 
         # TODO yoon0-0: need to check
         res_dicts = {
