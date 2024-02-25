@@ -160,7 +160,8 @@ class CommonAgent(a2c_continuous.A2CAgent):
                 self.writer.add_scalar('performance/total_fps', curr_frames / scaled_time, frame)
                 self.writer.add_scalar('performance/step_fps', curr_frames / scaled_play_time, frame)
                 self.writer.add_scalar('info/epochs', epoch_num, frame)
-                self._log_train_info(train_info, frame)
+                # y0-0n: AMP
+                # self._log_train_info(train_info, frame)
 
                 self.algo_observer.after_print_stats(frame, epoch_num, total_time)
                 

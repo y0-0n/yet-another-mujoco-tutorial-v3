@@ -265,7 +265,7 @@ class VecTask(Env):
         self.obs_buf = torch.zeros(
             (self.num_envs, self.horizon_length, self.num_obs), device=self.device, dtype=torch.float)
         self.amp_obs_buf = torch.zeros(
-            (self.num_envs, self.horizon_length, self.num_obs*2), device=self.device, dtype=torch.float)
+            (self.num_envs, self.horizon_length, self.num_amp_obs), device=self.device, dtype=torch.float)
         self.prev_obses = torch.zeros(
             (self.num_envs, self.horizon_length, self.num_obs), device=self.device, dtype=torch.float)
         self.prev_amp_obses = torch.zeros(
@@ -291,8 +291,7 @@ class VecTask(Env):
         self.actions = torch.zeros((self.num_envs, self.horizon_length,self.num_actions), device=self.device)
         self.mus = torch.zeros((self.num_envs, self.horizon_length,self.num_actions), device=self.device)
         self.sigmas = torch.zeros((self.num_envs, self.horizon_length,self.num_actions), device=self.device)
-        self.motion_times = torch.zeros(
-            (self.num_envs, self.horizon_length), device=self.device, dtype=torch.float)
+        self.motion_times = np.zeros((self.num_envs, self.horizon_length))
 
         self.extras = {}
 
@@ -444,7 +443,7 @@ class VecTask(Env):
             self.motion_times[i] = res['motion_times']
 
         # reset device (cannot be detached)
-        if not test:
+        if not test and torch.cuda.is_available():
             model.cuda()
             running_mean_std.cuda()
             value_mean_std.cuda()

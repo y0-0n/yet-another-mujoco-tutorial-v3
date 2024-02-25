@@ -26,7 +26,8 @@ from amp.utils.motion_lib import MotionLib
 from amp.utils.amp_torch_utils import *
 
 # modified for Atlas
-NUM_AMP_OBS_PER_STEP = 132 # [root_h, root_rot, root_vel, root_ang_vel, dof_pos, dof_vel, key_body_pos]
+NUM_AMP_OBS_PER_STEP = 132 # [root_h, root_rot, root_vel, root_ang_vel, dof_pos(6d), dof_vel, key_body_pos]
+NUM_DEEPMIMIC_OBS = 99 # [root_p+root_rot+dof_pos(44), root_vel+root_ang_vel+dof_vel(43), key_body_pos(12), COM(3)]
 
 class SMPLRigAMP(SMPLRigAMPBase):
 
@@ -48,17 +49,18 @@ class SMPLRigAMP(SMPLRigAMPBase):
         self._reset_default_env_ids = []
         self._reset_ref_env_ids = []
 
-        super().__init__(config=self.cfg, sim_device=sim_device, graphics_device_id=graphics_device_id, headless=headless)
 
         # motion_file = cfg['env'].get('motion_file')
         # motion_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../asset/" + motion_file)
         # self._load_motion(motion_file_path)
 
         self.num_amp_obs = self._num_amp_obs_steps * NUM_AMP_OBS_PER_STEP
+        super().__init__(config=self.cfg, sim_device=sim_device, graphics_device_id=graphics_device_id, headless=headless)
 
         self._amp_obs_space = spaces.Box(np.ones(self.num_amp_obs) * -np.Inf, np.ones(self.num_amp_obs) * np.Inf)
 
         self._amp_obs_buf = torch.zeros((self.num_envs, self._num_amp_obs_steps, NUM_AMP_OBS_PER_STEP), device=self.device, dtype=torch.float)
+        # self._deepmimic_obs_buf = torch.zeros((self.num_envs, NUM_DEEPMIMIC_OBS), device=self.device, dtype=torch.float)
         self._curr_amp_obs_buf = self._amp_obs_buf[:, 0]
         self._hist_amp_obs_buf = self._amp_obs_buf[:, 1:]
         
@@ -127,123 +129,6 @@ class SMPLRigAMP(SMPLRigAMPBase):
                                     #  device=self.device)
         return
     
-    def reset_idx(self, env_ids):
-        super().reset_idx(env_ids)
-        self._init_amp_obs(env_ids)
-        return
-
-    # modified for Atlas
-    def _reset_actors(self, env_ids):
-        if (self._state_init == SMPLRigAMP.StateInit.Default):
-            self._reset_default(env_ids)
-        elif (self._state_init == SMPLRigAMP.StateInit.Start
-              or self._state_init == SMPLRigAMP.StateInit.Random):
-            self._reset_ref_state_init(env_ids)
-        elif (self._state_init == SMPLRigAMP.StateInit.Hybrid):
-            self._reset_hybrid_state_init(env_ids)
-        else:
-            assert(False), "Unsupported state initialization strategy: {:s}".format(str(self._state_init))
-
-        self.progress_buf[env_ids] = 0
-        self.reset_buf[env_ids] = 0
-        self._terminate_buf[env_ids] = 0
-
-        return
-    
-    # Not work
-    def _reset_default(self, env_ids):
-        self._dof_pos[env_ids] = self._initial_dof_pos[env_ids]
-        self._dof_vel[env_ids] = self._initial_dof_vel[env_ids]
-
-        env_ids_int32 = env_ids.to(dtype=torch.int32)
-        self.gym.set_actor_root_state_tensor_indexed(self.sim, gymtorch.unwrap_tensor(self._initial_root_states),
-                                                     gymtorch.unwrap_tensor(env_ids_int32), len(env_ids_int32))
-
-        self.gym.set_dof_state_tensor_indexed(self.sim, gymtorch.unwrap_tensor(self._dof_state),
-                                              gymtorch.unwrap_tensor(env_ids_int32), len(env_ids_int32))
-
-        self._reset_default_env_ids = env_ids
-        return
-
-    # Work
-    def _reset_ref_state_init(self, env_ids):
-        num_envs = env_ids.shape[0]
-        motion_ids = self._motion_lib.sample_motions(num_envs)
-        # yoon0_0
-        # self._reset_obstacle(env_ids=env_ids)
-        # self._reset_soccer_ball(env_ids=env_ids)
-        if (self._state_init == SMPLRigAMP.StateInit.Random
-            or self._state_init == SMPLRigAMP.StateInit.Hybrid):
-            motion_times = self._motion_lib.sample_time(motion_ids)
-        elif (self._state_init == SMPLRigAMP.StateInit.Start):
-            motion_times = np.zeros(num_envs)
-        else:
-            assert(False), "Unsupported state initialization strategy: {:s}".format(str(self._state_init))
-
-        root_pos, root_rot, dof_pos, root_vel, root_ang_vel, dof_vel, key_pos \
-               = self._motion_lib.get_motion_state(motion_ids, motion_times)
-        # TODO l5vd5: to prevent from penetration
-        # root_pos[:,2] += 0.05
-        self._set_env_state(env_ids=env_ids, 
-                            root_pos=root_pos, 
-                            root_rot=root_rot, 
-                            dof_pos=dof_pos, 
-                            root_vel=root_vel, 
-                            root_ang_vel=root_ang_vel, 
-                            dof_vel=dof_vel)
-
-        self._reset_ref_env_ids = env_ids
-        self._reset_ref_motion_ids = motion_ids
-        self._reset_ref_motion_times = motion_times
-        return
-
-    def _reset_hybrid_state_init(self, env_ids):
-        num_envs = env_ids.shape[0]
-        ref_probs = to_torch(np.array([self._hybrid_init_prob] * num_envs), device=self.device)
-        ref_init_mask = torch.bernoulli(ref_probs) == 1.0
-
-        ref_reset_ids = env_ids[ref_init_mask]
-        if (len(ref_reset_ids) > 0):
-            self._reset_ref_state_init(ref_reset_ids)
-
-        default_reset_ids = env_ids[torch.logical_not(ref_init_mask)]
-        if (len(default_reset_ids) > 0):
-            self._reset_default(default_reset_ids)
-
-        return
-
-    def _init_amp_obs(self, env_ids):
-        self._compute_amp_observations(env_ids)
-
-        if (len(self._reset_default_env_ids) > 0):
-            self._init_amp_obs_default(self._reset_default_env_ids)
-
-        if (len(self._reset_ref_env_ids) > 0):
-            self._init_amp_obs_ref(self._reset_ref_env_ids, self._reset_ref_motion_ids,
-                                   self._reset_ref_motion_times)
-        return
-
-    def _init_amp_obs_default(self, env_ids):
-        curr_amp_obs = self._curr_amp_obs_buf[env_ids].unsqueeze(-2)
-        self._hist_amp_obs_buf[env_ids] = curr_amp_obs
-        return
-
-    def _init_amp_obs_ref(self, env_ids, motion_ids, motion_times):
-        dt = self.dt
-        motion_ids = np.tile(np.expand_dims(motion_ids, axis=-1), [1, self._num_amp_obs_steps - 1])
-        motion_times = np.expand_dims(motion_times, axis=-1)
-        time_steps = -dt * (np.arange(0, self._num_amp_obs_steps - 1) + 1)
-        motion_times = motion_times + time_steps
-
-        motion_ids = motion_ids.flatten()
-        motion_times = motion_times.flatten()
-        root_pos, root_rot, dof_pos, root_vel, root_ang_vel, dof_vel, key_pos \
-               = self._motion_lib.get_motion_state(motion_ids, motion_times)
-        root_states = torch.cat([root_pos, root_rot, root_vel, root_ang_vel], dim=-1)
-        amp_obs_demo = build_amp_observations(root_states, dof_pos, dof_vel, key_pos,
-                                      self._local_root_obs)
-        self._hist_amp_obs_buf[env_ids] = amp_obs_demo.view(self._hist_amp_obs_buf[env_ids].shape)
-        return
     
     # yoon0-0
     def _set_env_state(self, env_ids, root_pos, root_rot, dof_pos, root_vel, root_ang_vel, dof_vel, collision_test=True):
@@ -313,7 +198,7 @@ class SMPLRigAMP(SMPLRigAMPBase):
 ###=========================jit functions=========================###
 #####################################################################
 
-# @torch.jit.script
+@torch.jit.script
 def build_amp_observations(root_states, dof_pos, dof_vel, key_body_pos, local_root_obs):
     # type: (Tensor, Tensor, Tensor, Tensor, bool) -> Tensor
     root_pos = root_states[:, 0:3]
@@ -347,4 +232,19 @@ def build_amp_observations(root_states, dof_pos, dof_vel, key_body_pos, local_ro
     dof_obs = dof_to_obs(dof_pos)
 
     obs = torch.cat((root_h, root_rot_obs, local_root_vel, local_root_ang_vel, dof_obs, dof_vel, flat_local_key_pos), dim=-1)
+    return obs
+
+@torch.jit.script
+def build_deepmimic_observations(root_states, dof_pos, dof_vel, key_body_pos):
+    # type: (Tensor, Tensor, Tensor, Tensor) -> Tensor
+    root_pos = root_states[:, 0:3]
+    root_rot = root_states[:, 3:7]
+    root_vel = root_states[:, 7:10]
+    root_ang_vel = root_states[:, 10:13]
+
+    root_rot_obs = root_rot
+
+    flat_local_key_pos = key_body_pos.view(key_body_pos.shape[0], key_body_pos.shape[1] * key_body_pos.shape[2])
+
+    obs = torch.cat((root_pos, root_rot_obs, root_vel, root_ang_vel, dof_pos, dof_vel, flat_local_key_pos), dim=-1)
     return obs

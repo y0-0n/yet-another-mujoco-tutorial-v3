@@ -45,6 +45,10 @@ import amp.learning.replay_buffer as replay_buffer
 import amp.learning.common_agent as common_agent 
 
 from tensorboardX import SummaryWriter
+# SMPL
+from amp.tasks.smpl_rig_amp import build_amp_observations
+
+from util import r2rpy, quat2r
 
 class AMPAgent(common_agent.CommonAgent):
     def __init__(self, base_name, config):
@@ -171,7 +175,7 @@ class AMPAgent(common_agent.CommonAgent):
         # ____ start for ________
         self.obs, rewards, self.dones, infos = self.env_step()
 
-        for n, (obs, reward, done, amp_obs, terminate, prev_obs) in enumerate(zip(self.obs['obs'].transpose(0,1), rewards.transpose(0,1), self.dones.transpose(0,1), infos['amp_obs'].transpose(0,1), infos['terminate'].transpose(0,1), infos['prev_obses'].transpose(0,1))):
+        for n, (obs, reward, done, amp_obs, terminate, prev_obs, motion_time) in enumerate(zip(self.obs['obs'].transpose(0,1), rewards.transpose(0,1), self.dones.transpose(0,1), infos['amp_obs'].transpose(0,1), infos['terminate'].transpose(0,1), infos['prev_obses'].transpose(0,1), infos['motion_times'].transpose(1,0))):
             
             # self.experience_buffer.update_data('obses', n, torch.cat((prev_obs.unsqueeze(dim=0), obs[1:,:])))
 
@@ -216,10 +220,12 @@ class AMPAgent(common_agent.CommonAgent):
         mb_next_values = self.experience_buffer.tensor_dict['next_values']
 
         mb_rewards = self.experience_buffer.tensor_dict['rewards']
-        mb_amp_obs = self.experience_buffer.tensor_dict['amp_obs']
-        amp_rewards = self._calc_amp_rewards(mb_amp_obs)
-        # amp_rewards = self._calc_deepmimic_rewards(mb_amp_obs, motion_time)
-        mb_rewards = self._combine_rewards(mb_rewards, amp_rewards)
+        # y0-0n: AMP
+        # mb_amp_obs = self.experience_buffer.tensor_dict['amp_obs']
+        # amp_rewards = self._calc_amp_rewards(mb_amp_obs)
+        deepmimic_rewards = self._calc_deepmimic_rewards(infos['prev_obses'], infos['motion_times'].transpose(0,1)) # TODO: Check prev observation is right
+        mb_rewards = deepmimic_rewards[0].view(mb_rewards.shape)
+        # mb_rewards = self._combine_rewards(mb_rewards, amp_rewards)
 
         mb_advs = self.discount_values(mb_fdones, mb_values, mb_rewards, mb_next_values)
         mb_returns = mb_advs + mb_values
@@ -228,17 +234,19 @@ class AMPAgent(common_agent.CommonAgent):
         batch_dict['returns'] = a2c_common.swap_and_flatten01(mb_returns)
         batch_dict['played_frames'] = self.batch_size
 
-        for k, v in amp_rewards.items():
-            batch_dict[k] = a2c_common.swap_and_flatten01(v)
+        # y0-0n: AMP
+        # for k, v in amp_rewards.items():
+        #     batch_dict[k] = a2c_common.swap_and_flatten01(v)
 
         return batch_dict
 
 
     def prepare_dataset(self, batch_dict):
         super().prepare_dataset(batch_dict)
-        self.dataset.values_dict['amp_obs'] = batch_dict['amp_obs']
-        self.dataset.values_dict['amp_obs_demo'] = batch_dict['amp_obs_demo']
-        self.dataset.values_dict['amp_obs_replay'] = batch_dict['amp_obs_replay']
+        # y0-0n: AMP
+        # self.dataset.values_dict['amp_obs'] = batch_dict['amp_obs']
+        # self.dataset.values_dict['amp_obs_demo'] = batch_dict['amp_obs_demo']
+        # self.dataset.values_dict['amp_obs_replay'] = batch_dict['amp_obs_replay']
         return
 
     def train_epoch(self):
@@ -254,15 +262,16 @@ class AMPAgent(common_agent.CommonAgent):
         update_time_start = time.time()
         rnn_masks = batch_dict.get('rnn_masks', None)
         
-        self._update_amp_demos()
-        num_obs_samples = batch_dict['amp_obs'].shape[0]
-        amp_obs_demo = self._amp_obs_demo_buffer.sample(num_obs_samples)['amp_obs']
-        batch_dict['amp_obs_demo'] = amp_obs_demo
+        # y0-0n: AMP
+        # self._update_amp_demos()
+        # num_obs_samples = batch_dict['amp_obs'].shape[0]
+        # amp_obs_demo = self._amp_obs_demo_buffer.sample(num_obs_samples)['amp_obs']
+        # batch_dict['amp_obs_demo'] = amp_obs_demo
 
-        if (self._amp_replay_buffer.get_total_count() == 0):
-            batch_dict['amp_obs_replay'] = batch_dict['amp_obs']
-        else:
-            batch_dict['amp_obs_replay'] = self._amp_replay_buffer.sample(num_obs_samples)['amp_obs']
+        # if (self._amp_replay_buffer.get_total_count() == 0):
+        #     batch_dict['amp_obs_replay'] = batch_dict['amp_obs']
+        # else:
+        #     batch_dict['amp_obs_replay'] = self._amp_replay_buffer.sample(num_obs_samples)['amp_obs']
 
         self.set_train()
 
@@ -322,7 +331,8 @@ class AMPAgent(common_agent.CommonAgent):
         train_info['play_time'] = play_time
         train_info['update_time'] = update_time
         train_info['total_time'] = total_time
-        self._record_train_batch_info(batch_dict, train_info)
+        # y0-0n: AMP
+        # self._record_train_batch_info(batch_dict, train_info)
 
         return train_info
 
@@ -339,14 +349,15 @@ class AMPAgent(common_agent.CommonAgent):
         obs_batch = input_dict['obs']
         obs_batch = self._preproc_obs(obs_batch)
 
-        amp_obs = input_dict['amp_obs'][0:self._amp_minibatch_size]
-        amp_obs = self._preproc_amp_obs(amp_obs)
-        amp_obs_replay = input_dict['amp_obs_replay'][0:self._amp_minibatch_size]
-        amp_obs_replay = self._preproc_amp_obs(amp_obs_replay)
+        # y0-0n: AMP
+        # amp_obs = input_dict['amp_obs'][0:self._amp_minibatch_size]
+        # amp_obs = self._preproc_amp_obs(amp_obs)
+        # amp_obs_replay = input_dict['amp_obs_replay'][0:self._amp_minibatch_size]
+        # amp_obs_replay = self._preproc_amp_obs(amp_obs_replay)
 
-        amp_obs_demo = input_dict['amp_obs_demo'][0:self._amp_minibatch_size]
-        amp_obs_demo = self._preproc_amp_obs(amp_obs_demo)
-        amp_obs_demo.requires_grad_(True)
+        # amp_obs_demo = input_dict['amp_obs_demo'][0:self._amp_minibatch_size]
+        # amp_obs_demo = self._preproc_amp_obs(amp_obs_demo)
+        # amp_obs_demo.requires_grad_(True)
 
         lr = self.last_lr
         kl = 1.0
@@ -357,9 +368,10 @@ class AMPAgent(common_agent.CommonAgent):
             'is_train': True,
             'prev_actions': actions_batch, 
             'obs' : obs_batch,
-            'amp_obs' : amp_obs,
-            'amp_obs_replay' : amp_obs_replay,
-            'amp_obs_demo' : amp_obs_demo
+            # y0-0n: AMP
+            # 'amp_obs' : amp_obs,
+            # 'amp_obs_replay' : amp_obs_replay,
+            # 'amp_obs_demo' : amp_obs_demo
         }
 
         rnn_masks = None
@@ -375,9 +387,10 @@ class AMPAgent(common_agent.CommonAgent):
             entropy = res_dict['entropy']
             mu = res_dict['mus']
             sigma = res_dict['sigmas']
-            disc_agent_logit = res_dict['disc_agent_logit']
-            disc_agent_replay_logit = res_dict['disc_agent_replay_logit']
-            disc_demo_logit = res_dict['disc_demo_logit']
+            # y0-0n: AMP
+            # disc_agent_logit = res_dict['disc_agent_logit']
+            # disc_agent_replay_logit = res_dict['disc_agent_replay_logit']
+            # disc_demo_logit = res_dict['disc_demo_logit']
 
             a_info = self._actor_loss(old_action_log_probs_batch, action_log_probs, advantage, curr_e_clip)
             a_loss = a_info['actor_loss']
@@ -390,12 +403,13 @@ class AMPAgent(common_agent.CommonAgent):
             losses, sum_mask = torch_ext.apply_masks([a_loss.unsqueeze(1), c_loss, entropy.unsqueeze(1), b_loss.unsqueeze(1)], rnn_masks)
             a_loss, c_loss, entropy, b_loss = losses[0], losses[1], losses[2], losses[3]
             
-            disc_agent_cat_logit = torch.cat([disc_agent_logit, disc_agent_replay_logit], dim=0)
-            disc_info = self._disc_loss(disc_agent_cat_logit, disc_demo_logit, amp_obs_demo)
-            disc_loss = disc_info['disc_loss']
+            # y0-0n: AMP
+            # disc_agent_cat_logit = torch.cat([disc_agent_logit, disc_agent_replay_logit], dim=0)
+            # disc_info = self._disc_loss(disc_agent_cat_logit, disc_demo_logit, amp_obs_demo)
+            # disc_loss = disc_info['disc_loss']
 
             loss = a_loss + self.critic_coef * c_loss - self.entropy_coef * entropy + self.bounds_loss_coef * b_loss \
-                 + self._disc_coef * disc_loss
+                #  + self._disc_coef * disc_loss
             
             if self.multi_gpu:
                 self.optimizer.zero_grad()
@@ -437,7 +451,8 @@ class AMPAgent(common_agent.CommonAgent):
         }
         self.train_result.update(a_info)
         self.train_result.update(c_info)
-        self.train_result.update(disc_info)
+        # y0-0n: AMP
+        # self.train_result.update(disc_info)
 
         return
 
@@ -584,10 +599,59 @@ class AMPAgent(common_agent.CommonAgent):
     
     def _calc_deepmimic_rewards(self, deepmimic_obs, motion_times):
         motion_lib = self.vec_env.env._motion_lib
-        motion_ids = motion_lib.sample_motions(1)
-        # motion_times = motion_lib.sample_time(motion_ids)
+        motion_times = motion_times.flatten()
+        motion_ids = motion_lib.sample_motions(motion_times.shape[0]) # TODO : fix this hard code line
         root_pos, root_rot, dof_pos, root_vel, root_ang_vel, dof_vel, key_pos \
             = motion_lib.get_motion_state(motion_ids, motion_times)
+        
+        key_pos = key_pos.view(key_pos.shape[0], key_pos.shape[1] * key_pos.shape[2])
+        # root_states = torch.cat([root_pos, root_rot, root_vel, root_ang_vel], dim=-1)
+        # deepmimic_obs_demo = build_amp_observations(root_states, dof_pos, dof_vel, key_pos,
+        #                               self.vec_env.env.cfg['env']['localRootObs'])
+        # _deepmimic_obs_demo_buf = deepmimic_obs_demo.view(deepmimic_obs.shape)
+
+
+        # deepmimic_obs = [root_h (1), root_rot (4), root_vel (3), root_ang_vel (3), dof_pos (37), dof_vel (37), key_body_pos (12)]
+
+        # rotation of a quaternion error
+        # root_pos, root_rot_obs, root_vel, root_ang_vel, dof_pos, dof_vel, key_body_pos
+        deepmimic_obs = deepmimic_obs.reshape(-1, self.vec_env.env.num_obs)
+        root_pos_sample = deepmimic_obs[:, 0:3]
+        root_rot_sample = deepmimic_obs[:, 3:7]
+        root_vel_sample = deepmimic_obs[:, 7:10]
+        root_ang_vel_sample = deepmimic_obs[:, 10:13]
+        dof_pos_sample = deepmimic_obs[:, 13:50]
+        dof_vel_sample = deepmimic_obs[:, 50:87]
+        key_pos_sample = deepmimic_obs[:, 87:99]
+
+        rpy_reward = dof_pos_sample - dof_pos
+        root_rpy_diff = torch.tensor([r2rpy(R) for R in quat2r(root_rot_sample)]) - torch.tensor([r2rpy(R) for R in quat2r(root_rot)])
+        rpy_reward = torch.cat((rpy_reward, root_rpy_diff), dim=1)
+        rpy_reward = torch.sum(torch.square(rpy_reward),axis=1)
+        rpy_reward = torch.exp(-2*rpy_reward)
+
+        # angular velocity error
+        dof_vel = torch.cat((root_vel, root_ang_vel, dof_vel), dim=1)
+        dof_vel_sample = torch.cat((root_vel_sample, root_ang_vel_sample, dof_vel_sample), dim=1)
+        qvel_reward = dof_vel_sample - dof_vel
+        qvel_reward = torch.sum(torch.square(qvel_reward),axis=1)
+        qvel_reward = torch.exp(-0.1*qvel_reward)
+
+        # key point task position error
+        key_pos_reward = key_pos_sample - key_pos
+        key_pos_reward = torch.sum(torch.square(key_pos_reward),axis=1)
+        key_pos_reward = torch.exp(-40*key_pos_reward)
+
+        # COM error
+        root_position = root_pos_sample[...,:3] - root_pos[...,:3]
+        root_position = torch.sum(torch.square(root_position),axis=1)
+        root_position = torch.exp(-10*root_position)
+
+        reward = root_position + rpy_reward + qvel_reward + key_pos_reward + root_position
+
+        return reward, {"rpy": rpy_reward, "qvel": qvel_reward, "key_pos": key_pos_reward, "root_position": root_position}
+
+
 
 
     def _calc_disc_rewards(self, amp_obs):
