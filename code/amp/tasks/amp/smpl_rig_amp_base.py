@@ -490,7 +490,8 @@ def dof_to_obs(pose):
 
         # assume this is a spherical joint
         if (dof_size == 3):
-            joint_pose_q = exp_map_to_quat(joint_pose)
+            # joint_pose_q = exp_map_to_quat(joint_pose)
+            joint_pose_q = quat_from_euler_xyz(joint_pose[:,0], joint_pose[:,1], joint_pose[:,2])
             joint_dof_obs = quat_to_tan_norm(joint_pose_q)
             dof_obs_size = 6
         else:

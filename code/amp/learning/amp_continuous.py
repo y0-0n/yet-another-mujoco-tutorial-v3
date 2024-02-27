@@ -33,7 +33,7 @@ from rl_games.common import schedulers
 from rl_games.common import vecenv
 
 from amp.utils.torch_utils import *
-
+from amp.utils.torch_jit_utils import quat_to_tan_norm
 import time
 from datetime import datetime
 import numpy as np
@@ -47,6 +47,7 @@ import amp.learning.common_agent as common_agent
 from tensorboardX import SummaryWriter
 # SMPL
 from amp.tasks.smpl_rig_amp import build_amp_observations
+from amp.tasks.amp.smpl_rig_amp_base import dof_to_obs
 
 # from util import r2rpy, quat2r
 
@@ -622,8 +623,8 @@ class AMPAgent(common_agent.CommonAgent):
         dof_vel_sample = deepmimic_obs[:, 50:87]
         key_pos_sample = deepmimic_obs[:, 87:99]
 
-        rpy_reward = dof_pos_sample - dof_pos
-        root_rpy_diff = torch.stack(get_euler_xyz(root_rot_sample), axis=1) - torch.stack(get_euler_xyz(root_rot), axis=1)
+        rpy_reward = dof_to_obs(dof_pos_sample) - dof_to_obs(dof_pos)
+        root_rpy_diff = quat_to_tan_norm(root_rot_sample) - quat_to_tan_norm(root_rot)
         rpy_reward = torch.cat((rpy_reward, root_rpy_diff), dim=1)
         rpy_reward = torch.sum(torch.square(rpy_reward),axis=1)
         rpy_reward = torch.exp(-2*rpy_reward)
@@ -645,7 +646,7 @@ class AMPAgent(common_agent.CommonAgent):
         root_position = torch.sum(torch.square(root_position),axis=1)
         root_position = torch.exp(-10*root_position)
 
-        reward = (root_position + rpy_reward + qvel_reward + key_pos_reward) / 4
+        reward = (0.1*root_position + 0.65*rpy_reward + 0.1*qvel_reward + 0.15*key_pos_reward)
 
         return reward, {"rpy": rpy_reward, "qvel": qvel_reward, "key_pos": key_pos_reward, "root_position": root_position}
 
