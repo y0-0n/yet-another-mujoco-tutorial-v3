@@ -461,7 +461,7 @@ class SMPLRigAMPBase(VecTask):
 ###=========================jit functions=========================###
 #####################################################################
 
-# @torch.jit.script
+@torch.jit.script
 def dof_to_obs(pose):
     # type: (Tensor) -> Tensor
     dof_obs_size = 70
