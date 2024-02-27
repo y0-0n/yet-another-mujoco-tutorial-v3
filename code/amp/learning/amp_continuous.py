@@ -43,7 +43,7 @@ from torch import nn
 
 import amp.learning.replay_buffer as replay_buffer
 import amp.learning.common_agent as common_agent 
-
+import wandb
 from tensorboardX import SummaryWriter
 # SMPL
 from amp.tasks.smpl_rig_amp import build_amp_observations
@@ -181,7 +181,7 @@ class AMPAgent(common_agent.CommonAgent):
             # self.experience_buffer.update_data('obses', n, torch.cat((prev_obs.unsqueeze(dim=0), obs[1:,:])))
 
             for k in update_list:
-                self.experience_buffer.update_data(k, n, infos['res_dicts'][k].transpose(0,1)[n])
+                self.experience_buffer.update_data(k, n, infos['res_dicts'][k][n])
 
             # if self.has_central_value:
             #     self.experience_buffer.update_data('states', n, self.obs['states'])
@@ -225,6 +225,14 @@ class AMPAgent(common_agent.CommonAgent):
         # mb_amp_obs = self.experience_buffer.tensor_dict['amp_obs']
         # amp_rewards = self._calc_amp_rewards(mb_amp_obs)
         deepmimic_rewards = self._calc_deepmimic_rewards(infos['prev_obses'], infos['motion_times'].transpose(0,1)) # TODO: Check prev observation is right
+        wandb.log(
+            {
+                "deepmimic_reward": torch.mean(deepmimic_rewards[0]),
+                "qpos_reward": torch.mean(deepmimic_rewards[1]['rpy']),
+                "qvel_reward": torch.mean(deepmimic_rewards[1]['qvel']),
+                "key_pos_reward": torch.mean(deepmimic_rewards[1]['key_pos']),
+                "root_position": torch.mean(deepmimic_rewards[1]['root_position'])
+            })
         mb_rewards = deepmimic_rewards[0].view(mb_rewards.shape)
         # mb_rewards = self._combine_rewards(mb_rewards, amp_rewards)
 
@@ -235,7 +243,7 @@ class AMPAgent(common_agent.CommonAgent):
         batch_dict['returns'] = a2c_common.swap_and_flatten01(mb_returns)
         batch_dict['played_frames'] = self.batch_size
 
-        # y0-0n: AMP
+        # y0-0n: DeepMimic
         # for k, v in amp_rewards.items():
         #     batch_dict[k] = a2c_common.swap_and_flatten01(v)
 
@@ -673,7 +681,7 @@ class AMPAgent(common_agent.CommonAgent):
         return
 
     def _record_train_batch_info(self, batch_dict, train_info):
-        train_info['disc_rewards'] = batch_dict['disc_rewards']
+        train_info['deepmimic_rewards'] = batch_dict['deepmimic_rewards']
         return
 
     def _log_train_info(self, train_info, frame):
