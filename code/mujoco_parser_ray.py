@@ -97,6 +97,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
         self.force = torch.zeros((3,))
         self.res_dict = None
         self.motion_time = 0
+        # self.body_with_joint_idxs = np.unique(np.array([self.model.joint(j).bodyid for j in self.rev_joint_names]))
 
         if (self.VERBOSE):
             print("PID controller ready")

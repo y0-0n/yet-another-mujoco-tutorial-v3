@@ -608,8 +608,6 @@ class AMPAgent(common_agent.CommonAgent):
         # root_states = torch.cat([root_pos, root_rot, root_vel, root_ang_vel], dim=-1)
         # deepmimic_obs_demo = build_amp_observations(root_states, dof_pos, dof_vel, key_pos,
         #                               self.vec_env.env.cfg['env']['localRootObs'])
-        # _deepmimic_obs_demo_buf = deepmimic_obs_demo.view(deepmimic_obs.shape)
-
 
         # deepmimic_obs = [root_h (1), root_rot (4), root_vel (3), root_ang_vel (3), dof_pos (37), dof_vel (37), key_body_pos (12)]
 
@@ -624,11 +622,11 @@ class AMPAgent(common_agent.CommonAgent):
         dof_vel_sample = deepmimic_obs[:, 50:87]
         key_pos_sample = deepmimic_obs[:, 87:99]
 
-        # rpy_reward = dof_pos_sample - dof_pos
-        # root_rpy_diff = torch.stack(get_euler_xyz(root_rot_sample), axis=1) - torch.stack(get_euler_xyz(root_rot), axis=1)
-        # rpy_reward = torch.cat((rpy_reward, root_rpy_diff), dim=1)
-        # rpy_reward = torch.sum(torch.square(rpy_reward),axis=1)
-        # rpy_reward = torch.exp(-2*rpy_reward)
+        rpy_reward = dof_pos_sample - dof_pos
+        root_rpy_diff = torch.stack(get_euler_xyz(root_rot_sample), axis=1) - torch.stack(get_euler_xyz(root_rot), axis=1)
+        rpy_reward = torch.cat((rpy_reward, root_rpy_diff), dim=1)
+        rpy_reward = torch.sum(torch.square(rpy_reward),axis=1)
+        rpy_reward = torch.exp(-2*rpy_reward)
 
         # angular velocity error
         dof_vel = torch.cat((root_vel, root_ang_vel, dof_vel), dim=1)
