@@ -415,7 +415,7 @@ class VecTask(Env):
         rollouts = [env.step_loop.remote(
             ray_dict=ray_dict,
             nstep=1,
-            test=True
+            test=test
             # model=model.to('cpu'),running_mean_std=running_mean_std.to('cpu'),value_mean_std=value_mean_std.to('cpu')
             ) for env in self.mujoco_envs]
 

@@ -313,7 +313,7 @@ class SMPLRigAMP(SMPLRigAMPBase):
 ###=========================jit functions=========================###
 #####################################################################
 
-# @torch.jit.script
+@torch.jit.script
 def build_amp_observations(root_states, dof_pos, dof_vel, key_body_pos, local_root_obs):
     # type: (Tensor, Tensor, Tensor, Tensor, bool) -> Tensor
     root_pos = root_states[:, 0:3]
