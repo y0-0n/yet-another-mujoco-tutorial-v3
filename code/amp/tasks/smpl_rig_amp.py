@@ -127,6 +127,10 @@ class SMPLRigAMP(SMPLRigAMPBase):
                                      key_body_ids=self._key_body_ids.cpu().numpy(), 
                                      device='cpu')
                                     #  device=self.device)
+        self._motion_lib_demo = MotionLib(motion_file=motion_file, 
+                                     num_dofs=self.num_dof,
+                                     key_body_ids=self._key_body_ids.cpu().numpy(), 
+                                     device=self.device)
         return
     
     

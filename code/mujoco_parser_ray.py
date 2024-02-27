@@ -64,6 +64,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
 
         self.root_states = torch.zeros((1,13))
         self.dof_pos = torch.zeros((1,self.n_rev_joint))
+        # self.quat_rot = torch.zeros((1,self.n_body-1,4))
         self.dof_vel = torch.zeros((1,self.n_rev_joint))
         self.rigid_body_pos = torch.zeros((1,self.n_body-1,3))
         self.key_body_pos = torch.zeros((1,self._key_body_ids.shape[0],3))
@@ -130,10 +131,19 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
 
     def get_ps(self):
         """
-            Get x
+            Get p
         """
         return self.data.xpos[1:].copy()
 
+    def get_Rs(self):
+        """
+            Get R
+        """
+        Rs = []
+        for rev_joint_name in self.rev_joint_names:
+            Rs.append(self.get_R_joint(rev_joint_name))
+        return np.array(Rs)
+    
     def get_qposes(self):
         """
             Get 
@@ -235,13 +245,6 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
         # from amp.tasks.amp.common_rig_amp_base import compute_humanoid_reward
         from amp.tasks.smpl_rig_amp import build_amp_observations
         from amp.tasks.amp.smpl_rig_amp_base import compute_humanoid_reset2
-
-        # yoon0-0 TODO: reward tuning
-        # @torch.jit.script
-        # def compute_humanoid_reward(cur_root_state, pre_root_state):
-        #     # type: (Tensor, Tensor) -> Tensor
-        #     reward = torch.ones_like(cur_root_state[0])
-        #     return reward
 
         # self._model,self.running_mean_std,self.value_mean_std = ray_dict['model'],ray_dict['running_mean_std'],ray_dict['value_mean_std']
         self._model.load_state_dict(ray_dict['model'])
@@ -388,13 +391,6 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
         from amp.tasks.smpl_rig_amp import build_amp_observations, build_deepmimic_observations
         from amp.tasks.amp.smpl_rig_amp_base import compute_humanoid_reset2
 
-        # yoon0-0 TODO: reward tuning
-        # @torch.jit.script
-        # def compute_humanoid_reward(cur_root_state, pre_root_state):
-        #     # type: (Tensor, Tensor) -> Tensor
-        #     reward = torch.ones_like(cur_root_state[0])
-        #     return reward
-
         # self._model,self.running_mean_std,self.value_mean_std = ray_dict['model'],ray_dict['running_mean_std'],ray_dict['value_mean_std']
         self._model.load_state_dict(ray_dict['model'])
         # eval running mean std (updated outside ray worker after rollout)
@@ -433,6 +429,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
                 elif self.mode == 'deepmimic':
                     self.root_states[0] = torch.from_numpy(np.concatenate((self.get_p_body('base'), r2quat(self.get_R_body('base'))[[1,2,3,0]], self.get_qvel_joint('base')[0:3], self.get_qvel_joint('base')[3:6]), axis=-1))
                     self.dof_pos[0] = torch.from_numpy(self.get_qposes())
+                    # self.quat_rot[0]
                     self.dof_vel[0] = torch.from_numpy(self.get_qvels())
                     self.rigid_body_pos[0] = torch.from_numpy(self.get_ps())
                     self.key_body_pos[0] = self.rigid_body_pos[:, self._key_body_ids, :]
