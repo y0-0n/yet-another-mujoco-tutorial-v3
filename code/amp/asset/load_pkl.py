@@ -9,7 +9,7 @@ sys.path.append('/Users/yoonbyung/Dev/yet-another-mujoco-tutorial-v3/code/')
 from collections import OrderedDict
 from poselib.skeleton.skeleton3d import SkeletonTree, SkeletonState, SkeletonMotion
 from util import t2pr
-pkl_file_name =  "smplrig_cmu_walk_16_15_zpos_edited.pkl"
+pkl_file_name =  "smplrig_cmu_walk_optimized_recon.pkl"
 pkl_file_path = os.path.join(os.path.dirname(__file__), pkl_file_name)
 with open(file=pkl_file_path, mode='rb') as f:
     pkl_file=pickle.load(f)
@@ -20,9 +20,10 @@ skel_file = np.load(os.path.join(os.path.dirname(__file__), 'smpl_rig.npy'), all
 # npy_file2 = np.load(os.path.join(os.path.dirname(__file__), npy_file_name2), allow_pickle=True)
 npy_file.item()['rotation']['arr'] = pkl_file['rotation'][:,1:,[1,2,3,0]]
 # npy_file.item()['rotation']['arr'] = npy_file.item()['rotation']['arr'][:, :, [1,2,3,0]]
-npy_file.item()['root_translation']['arr'] = np.array(pkl_file['root'])
+npy_file.item()['root_translation']['arr'] = np.array(pkl_file['p_root'])
 npy_file.item()['skeleton_tree'] = skel_file.item()['skeleton_tree']#np.array(pkl_file['skel_local_translation'])
-npy_file.item()['qpos'] = np.array(pkl_file['qpos'])[:,7:]
+# npy_file.item()['qpos'] = np.array(pkl_file['qpos'])[:,7:]
+npy_file.item()['qpos'] = np.array(pkl_file['qpos'])[:,:]
 npy_file.item()['quat_joints'] = np.array(pkl_file['rotation'])
 npy_file.item()['xpos'] = np.array(pkl_file['xpos'])[:,1:,:]
 npy_file.item()['fps'] = 120
