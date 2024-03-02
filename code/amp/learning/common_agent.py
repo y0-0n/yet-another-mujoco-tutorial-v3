@@ -121,6 +121,10 @@ class CommonAgent(a2c_continuous.A2CAgent):
         return
 
     def train(self):
+        import wandb
+        wandb.init(project="DeepMimic")
+        wandb.config.update(self.config)
+
         self.init_tensors()
         self.last_mean_rewards = -100500
         start_time = time.time()

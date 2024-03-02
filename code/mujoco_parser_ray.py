@@ -435,12 +435,13 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
                     self.rigid_body_pos[0] = torch.from_numpy(self.get_ps())
                     self.key_body_pos[0] = self.rigid_body_pos[:, self._key_body_ids, :]
                     self.obs = build_deepmimic_observations(self.root_states, self.dof_pos, self.dof_vel, self.key_body_pos)
+                self.step(INCREASE_TICK=False)
 
             if self.mode == 'amp':
-                self.prev_obses[n] = self._compute_humanoid_obs()
+                self.prev_obses[n] = self.obs.clone()
                 self.prev_amp_obses[n] = build_amp_observations(self.root_states, self.dof_pos, self.dof_vel, self.key_body_pos, False)[0]
             elif self.mode == 'deepmimic':
-                self.prev_obses[n] = build_deepmimic_observations(self.root_states, self.dof_pos, self.dof_vel, self.key_body_pos)
+                self.prev_obses[n] = self.obs.clone()#build_deepmimic_observations(self.root_states, self.dof_pos, self.dof_vel, self.key_body_pos)
                 # self.prev_deepmimic_obses[n] = build_deepmimic_observations(self.root_states, self.dof_pos, self.dof_vel, self.key_body_pos)[0]
 
             if self.USE_MUJOCO_VIEWER:
@@ -463,10 +464,9 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
                 trgt = self.res_dict['mus']
 
             super().step(ctrl=trgt,nstep=nstep,ctrl_idxs=ctrl_idxs,INCREASE_TICK=INCREASE_TICK)
-            
             # next root state
             # self.root_states[0] = torch.from_numpy(np.concatenate((self.get_p_body('base'), r2quat(self.get_R_body('base'))[[1,2,3,0]], self.get_qvel_joint('base')[0:3], self.get_qvel_joint('base')[3:6]), axis=-1))
-            self.root_states[0] = torch.from_numpy(np.concatenate((self.get_p_body('root'), r2quat(self.get_R_body('root'))[[1,2,3,0]], self.get_qvel_joint(0)[0:3], self.get_qvel_joint(0)[3:6]), axis=-1))
+            # self.root_states[0] = torch.from_numpy(np.concatenate((self.get_p_body('root'), r2quat(self.get_R_body('root'))[[1,2,3,0]], self.get_qvel_joint(0)[0:3], self.get_qvel_joint(0)[3:6]), axis=-1))
 
             # contact forces
             contact_info = self.get_contact_info()
@@ -489,11 +489,17 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
             if self.mode == 'amp':
                 self.obs = self._compute_humanoid_obs()
             elif self.mode == 'deepmimic':
+                self.root_states[0] = torch.from_numpy(np.concatenate((self.get_p_body('base'), r2quat(self.get_R_body('base'))[[1,2,3,0]], self.get_qvel_joint('base')[0:3], self.get_qvel_joint('base')[3:6]), axis=-1))
+                self.dof_pos[0] = torch.from_numpy(self.get_qposes())
+                # self.quat_rot[0]
+                self.dof_vel[0] = torch.from_numpy(self.get_qvels())
+                self.rigid_body_pos[0] = torch.from_numpy(self.get_ps())
+                self.key_body_pos[0] = self.rigid_body_pos[:, self._key_body_ids, :]
                 self.obs = build_deepmimic_observations(self.root_states, self.dof_pos, self.dof_vel, self.key_body_pos)
             # amp observation TODO: move it outside ray
-            self.dof_pos[0] = torch.from_numpy(self.get_qposes())
-            self.dof_vel[0] = torch.from_numpy(self.get_qvels())
-            self.key_body_pos[0] = self.rigid_body_pos[:, self._key_body_ids, :]
+            # self.dof_pos[0] = torch.from_numpy(self.get_qposes())
+            # self.dof_vel[0] = torch.from_numpy(self.get_qvels())
+            # self.key_body_pos[0] = self.rigid_body_pos[:, self._key_body_ids, :]
             amp_obs = build_amp_observations(self.root_states, self.dof_pos, self.dof_vel, self.key_body_pos, False)[0]
             # deepmimic_obs = build_deepmimic_observations(self.root_states, self.dof_pos, self.dof_vel, self.key_body_pos)[0]
             self.motion_time += self.dt
