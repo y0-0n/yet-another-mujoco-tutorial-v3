@@ -33,7 +33,7 @@ from rl_games.common import schedulers
 from rl_games.common import vecenv
 
 from amp.utils.torch_utils import *
-from amp.utils.torch_jit_utils import quat_to_tan_norm
+from amp.utils.torch_jit_utils import quat_to_tan_norm, quat_diff_rad
 import time
 from datetime import datetime
 import numpy as np
@@ -181,7 +181,7 @@ class AMPAgent(common_agent.CommonAgent):
             # self.experience_buffer.update_data('obses', n, torch.cat((prev_obs.unsqueeze(dim=0), obs[1:,:])))
 
             for k in update_list:
-                self.experience_buffer.update_data(k, n, infos['res_dicts'][k][n])
+                self.experience_buffer.update_data(k, n, infos['res_dicts'][k].transpose(0,1)[n])
 
             # if self.has_central_value:
             #     self.experience_buffer.update_data('states', n, self.obs['states'])
@@ -222,18 +222,19 @@ class AMPAgent(common_agent.CommonAgent):
 
         mb_rewards = self.experience_buffer.tensor_dict['rewards']
         # y0-0n: AMP
-        # mb_amp_obs = self.experience_buffer.tensor_dict['amp_obs']
+        # mb_obs = self.experience_buffer.tensor_dict['obses']
+        # mb_motion_time = self.experience_buffer.tensor_dict['motion_times']
         # amp_rewards = self._calc_amp_rewards(mb_amp_obs)
-        deepmimic_rewards = self._calc_deepmimic_rewards(infos['prev_obses'], infos['motion_times'].transpose(0,1)) # TODO: Check prev observation is right
+        deepmimic_rewards = self._calc_deepmimic_rewards(self.obs['obs'], infos['motion_times'].transpose(0,1)) # TODO: Check next observation is right
         wandb.log(
             {
                 "deepmimic_reward": torch.mean(deepmimic_rewards[0]),
-                "qpos_reward": torch.mean(deepmimic_rewards[1]['rpy']),
+                "qpos_reward": torch.mean(deepmimic_rewards[1]['qpos']),
                 "qvel_reward": torch.mean(deepmimic_rewards[1]['qvel']),
                 "key_pos_reward": torch.mean(deepmimic_rewards[1]['key_pos']),
                 "root_position": torch.mean(deepmimic_rewards[1]['root_position'])
             })
-        mb_rewards = deepmimic_rewards[0].view(mb_rewards.shape)
+        mb_rewards = deepmimic_rewards[0]
         # mb_rewards = self._combine_rewards(mb_rewards, amp_rewards)
 
         mb_advs = self.discount_values(mb_fdones, mb_values, mb_rewards, mb_next_values)
@@ -256,6 +257,7 @@ class AMPAgent(common_agent.CommonAgent):
         # self.dataset.values_dict['amp_obs'] = batch_dict['amp_obs']
         # self.dataset.values_dict['amp_obs_demo'] = batch_dict['amp_obs_demo']
         # self.dataset.values_dict['amp_obs_replay'] = batch_dict['amp_obs_replay']
+        self.dataset.values_dict['amp_obs'] = batch_dict['amp_obs']
         return
 
     def train_epoch(self):
@@ -566,6 +568,10 @@ class AMPAgent(common_agent.CommonAgent):
         replay_buffer_size = int(self.config['amp_replay_buffer_size'])
         self._amp_replay_buffer = replay_buffer.ReplayBuffer(replay_buffer_size, self.ppo_device)
 
+        # # deep_mimic
+        # self.experience_buffer.tensor_dict['motion_times'] = torch.zeros(batch_shape + (1,),
+        #                                                             device=self.ppo_device)
+
         self.tensor_list += ['amp_obs']
         return
 
@@ -631,18 +637,20 @@ class AMPAgent(common_agent.CommonAgent):
         dof_vel_sample = deepmimic_obs[:, 50:87]
         key_pos_sample = deepmimic_obs[:, 87:99]
 
-        rpy_reward = dof_to_obs(dof_pos_sample) - dof_to_obs(dof_pos)
-        root_rpy_diff = quat_to_tan_norm(root_rot_sample) - quat_to_tan_norm(root_rot)
-        rpy_reward = torch.cat((rpy_reward, root_rpy_diff), dim=1)
-        rpy_reward = torch.sum(torch.square(rpy_reward),axis=1)
-        rpy_reward = torch.exp(-2*rpy_reward)
+        dof_diff = dof_pos_sample - dof_pos#dof_to_obs(dof_pos_sample) - dof_to_obs(dof_pos)
+        # root_rot_diff = torch.stack(get_euler_xyz(root_rot_sample),axis=1) - torch.stack(get_euler_xyz(root_rot),axis=1) #quat_to_tan_norm(root_rot_sample) - quat_to_tan_norm(root_rot)
+        root_rot_diff = quat_diff_rad(root_rot_sample, root_rot).reshape(-1, 1)
+        # diff = quat_diff(root_rot_sample, root_rot)
+        qpos_reward = torch.cat((dof_diff, root_rot_diff), dim=1)
+        qpos_reward = torch.sum(torch.square(qpos_reward),axis=1)
+        qpos_reward = torch.exp(-0.5*qpos_reward)
 
         # angular velocity error
         dof_vel = torch.cat((root_vel, root_ang_vel, dof_vel), dim=1)
         dof_vel_sample = torch.cat((root_vel_sample, root_ang_vel_sample, dof_vel_sample), dim=1)
         qvel_reward = dof_vel_sample - dof_vel
         qvel_reward = torch.sum(torch.square(qvel_reward),axis=1)
-        qvel_reward = torch.exp(-0.1*qvel_reward)
+        qvel_reward = torch.exp(-2*qvel_reward)
 
         # key point task position error
         key_pos_reward = key_pos_sample - key_pos
@@ -650,13 +658,14 @@ class AMPAgent(common_agent.CommonAgent):
         key_pos_reward = torch.exp(-40*key_pos_reward)
 
         # COM error
-        root_position = root_pos_sample[...,:3] - root_pos[...,:3]
-        root_position = torch.sum(torch.square(root_position),axis=1)
-        root_position = torch.exp(-10*root_position)
+        root_position_diff = root_pos_sample[...,:3] - root_pos[...,:3]
+        root_position_reward = torch.sum(torch.square(root_position_diff),axis=1)
+        root_position_reward = torch.exp(-10*root_position_reward)
 
-        reward = (0.1*root_position + 0.65*rpy_reward + 0.1*qvel_reward + 0.15*key_pos_reward)
+        reward = (0.05*root_position_reward + 0.75*qpos_reward + 0.05*qvel_reward + 0.15*key_pos_reward)
+        reward = reward.view(self.num_actors, self.horizon_length).transpose(0, 1).unsqueeze(2)
 
-        return reward, {"rpy": rpy_reward, "qvel": qvel_reward, "key_pos": key_pos_reward, "root_position": root_position}
+        return reward, {"qpos": qpos_reward, "qvel": qvel_reward, "key_pos": key_pos_reward, "root_position": root_position_reward}
 
 
 

@@ -54,7 +54,7 @@ class AMPBuilder(network_builder.A2CBuilder):
                     sigma_init(self.sigma)
                     
             amp_input_shape = kwargs.get('amp_input_shape')
-            self._build_disc(amp_input_shape)
+            # self._build_disc(amp_input_shape)
 
             return
 

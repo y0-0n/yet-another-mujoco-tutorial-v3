@@ -206,7 +206,7 @@ class SMPLRigAMPBase(VecTask):
                                                         motion_lib=self._motion_lib,
                                                         max_episode_length=self.max_episode_length,
                                                         horizon_length=self.horizon_length,
-                                                        mode="deepmimic"
+                                                        mode='deepmimic'
                                                         # pd_ingredients={"pd_offset": self._pd_action_offset, "pd_scale": self._pd_action_scale}
                                                         ) for i in range(self.num_envs)]
 

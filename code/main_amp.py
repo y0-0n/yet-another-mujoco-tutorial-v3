@@ -54,9 +54,6 @@ from amp.learning import amp_players
 from amp.learning import amp_models
 from amp.learning import amp_network_builder
 
-import wandb
-wandb.init(project="DeepMimic")
-
 ## OmegaConf & Hydra Config
 # Resolvers used in hydra configs (see https://omegaconf.readthedocs.io/en/2.1_branch/usage.html#resolvers)
 OmegaConf.register_new_resolver('eq', lambda x, y: x.lower()==y.lower())
