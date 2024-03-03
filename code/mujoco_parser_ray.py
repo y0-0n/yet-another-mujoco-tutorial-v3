@@ -49,7 +49,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
         self.env_id = env_id
         self.mode = mode
         self.horizon_length = horizon_length
-        self._contact_forces = torch.zeros((self.n_body, 3), device=self.device)
+        self._contact_forces = torch.zeros((self.n_body-1, 3), device=self.device)
         self._contact_body_ids = contact_body_ids
         self._key_body_ids = key_body_ids
         self.reset_flag = torch.ones((1,))
@@ -406,11 +406,13 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
         
         trgt = None
         amp_obs = None
+        body_name = None
         
         for n in range(self.horizon_length):
             # reset actor
             # self.obs, done_env_ids = self._env_reset_done()
             if self.reset_flag[0]:
+                self._contact_forces = torch.zeros_like(self._contact_forces)
                 self.tick = torch.tensor(0)
                 motion_ids = self._motion_lib.sample_motions(1)
                 self.motion_time = self._motion_lib.sample_time(motion_ids)
