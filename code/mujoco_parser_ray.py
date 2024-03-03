@@ -12,7 +12,7 @@ from pid import PID_ControllerClass
 import sys
 import gc
 
-NUM_DEEPMIMIC_OBS = 99 # [root_p+root_rot+dof_pos(44), root_vel+root_ang_vel+dof_vel(43), key_body_pos(12), COM(3)]
+NUM_DEEPMIMIC_OBS = 132 # [root_p+root_rot+dof_pos(44), root_vel+root_ang_vel+dof_vel(43), key_body_pos(12), COM(3)]
 
 @ray.remote
 class MuJoCoParserClassRay(MuJoCoParserClass):
@@ -405,6 +405,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
         i = 0 # TODO: i -> 0
         
         trgt = None
+        amp_obs = None
         
         for n in range(self.horizon_length):
             # reset actor
@@ -479,7 +480,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
             # timeout = torch.where(torch.tensor(self.tick >= self.max_episode_length - 1), torch.ones((1,)), torch.zeros((1,)))
 
             # reset
-            self.rigid_body_pos[0] = torch.from_numpy(self.get_ps())
+            # self.rigid_body_pos[0] = torch.from_numpy(self.get_ps())
             self.reset_flag, terminated = compute_humanoid_reset2(self.tick, self._contact_forces, self._contact_body_ids, self.rigid_body_pos, self.max_episode_length, True, 0.30) # TODO
 
             # TODO: reward
@@ -488,6 +489,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
             # observation
             if self.mode == 'amp':
                 self.obs = self._compute_humanoid_obs()
+                amp_obs = build_amp_observations(self.root_states, self.dof_pos, self.dof_vel, self.key_body_pos, False)[0]
             elif self.mode == 'deepmimic':
                 self.root_states[0] = torch.from_numpy(np.concatenate((self.get_p_body('base'), r2quat(self.get_R_body('base'))[[1,2,3,0]], self.get_qvel_joint('base')[0:3], self.get_qvel_joint('base')[3:6]), axis=-1))
                 self.dof_pos[0] = torch.from_numpy(self.get_qposes())
@@ -500,7 +502,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
             # self.dof_pos[0] = torch.from_numpy(self.get_qposes())
             # self.dof_vel[0] = torch.from_numpy(self.get_qvels())
             # self.key_body_pos[0] = self.rigid_body_pos[:, self._key_body_ids, :]
-            amp_obs = build_amp_observations(self.root_states, self.dof_pos, self.dof_vel, self.key_body_pos, False)[0]
+            
             # deepmimic_obs = build_deepmimic_observations(self.root_states, self.dof_pos, self.dof_vel, self.key_body_pos)[0]
             self.motion_time += self.dt
 
@@ -515,7 +517,8 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
             self.resets[n] = self.reset_flag# resets.append(self.reset_flag)
             self.terminates[n] = terminated# terminates.append(terminated)
             # rewards[n] = reward# rewards.append(reward)
-            self.amp_obses[n] = amp_obs# amp_obses.append(amp_obs)
+            if amp_obs:
+                self.amp_obses[n] = amp_obs# amp_obses.append(amp_obs)
             # self.deepmimic_obses[n] = build_deepmimic_observations(self.root_states, self.dof_pos, self.dof_vel, self.key_body_pos)[0]
             # res_dicts.append(res_dict)
             self.neglogpacs[n] = self.res_dict['neglogpacs']
