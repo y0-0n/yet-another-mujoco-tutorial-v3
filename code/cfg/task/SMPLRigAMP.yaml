@@ -12,11 +12,11 @@ env:
     numEnvs: ${resolve_default:4096,${...num_envs}}
     # numMuJoCoEnvs: ${resolve_default:2,${...num_mujoco_envs}}
     envSpacing: 5
-    episodeLength: 32
+    episodeLength: 100
     cameraFollow: True # if the camera follows humanoid or not
     enableDebugVis: False
 
-    pdControl: True
+    pdControl: False
     powerScale: 1.0 #1.0
     controlFrequencyInv: 2 #2 # 30 Hz
     stateInit: 'Random'
@@ -30,7 +30,7 @@ env:
 
     # animation files to learn from
     # these motions should use hyperparameters from HumanoidAMPPPO.yaml
-    motion_file: 'smpl_rig/motion/recon_smpl_walk.npy'
+    motion_file: 'smpl_rig/motion/recon_smpl_walk_optimized.npy'
     # motion_file: "forward_jump.npy"
     is_soccer_task: False
     num_balls: 0
