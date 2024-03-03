@@ -620,6 +620,7 @@ class AMPAgent(common_agent.CommonAgent):
         root_pos, root_rot, dof_pos, root_vel, root_ang_vel, dof_vel, key_pos \
             = motion_lib.get_motion_state(motion_ids, motion_times)
         
+        key_pos = key_pos - root_pos.unsqueeze(-2) # local
         key_pos = key_pos.view(key_pos.shape[0], key_pos.shape[1] * key_pos.shape[2])
         # root_states = torch.cat([root_pos, root_rot, root_vel, root_ang_vel], dim=-1)
         # deepmimic_obs_demo = build_amp_observations(root_states, dof_pos, dof_vel, key_pos,
@@ -644,14 +645,14 @@ class AMPAgent(common_agent.CommonAgent):
         # diff = quat_diff(root_rot_sample, root_rot)
         qpos_reward = torch.cat((dof_diff, root_rot_diff), dim=1)
         qpos_reward = torch.sum(torch.square(qpos_reward),axis=1)
-        qpos_reward = torch.exp(-0.5*qpos_reward)
+        qpos_reward = torch.exp(-5e-1*qpos_reward)
 
         # angular velocity error
         dof_vel = torch.cat((root_vel, root_ang_vel, dof_vel), dim=1)
         dof_vel_sample = torch.cat((root_vel_sample, root_ang_vel_sample, dof_vel_sample), dim=1)
         qvel_reward = dof_vel_sample - dof_vel
         qvel_reward = torch.sum(torch.square(qvel_reward),axis=1)
-        qvel_reward = torch.exp(-2*qvel_reward)
+        qvel_reward = torch.exp(-1e-3*qvel_reward)
 
         # key point task position error
         key_pos_reward = key_pos_sample - key_pos
@@ -663,7 +664,7 @@ class AMPAgent(common_agent.CommonAgent):
         root_position_reward = torch.sum(torch.square(root_position_diff),axis=1)
         root_position_reward = torch.exp(-10*root_position_reward)
 
-        reward = (0.05*root_position_reward + 0.75*qpos_reward + 0.05*qvel_reward + 0.15*key_pos_reward)
+        reward = (0.1*root_position_reward + 0.65*qpos_reward + 0.1*qvel_reward + 0.15*key_pos_reward)
         reward = reward.view(self.num_actors, self.horizon_length).transpose(0, 1).unsqueeze(2)
 
         return reward, {"qpos": qpos_reward, "qvel": qvel_reward, "key_pos": key_pos_reward, "root_position": root_position_reward}
