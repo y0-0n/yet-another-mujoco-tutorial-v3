@@ -248,6 +248,7 @@ def build_deepmimic_observations(root_states, dof_pos, dof_vel, key_body_pos):
 
     root_rot_obs = root_rot
 
+    key_body_pos = key_body_pos - root_pos.unsqueeze(-2)
     flat_local_key_pos = key_body_pos.view(key_body_pos.shape[0], key_body_pos.shape[1] * key_body_pos.shape[2])
 
     obs = torch.cat((root_pos, root_rot_obs, root_vel, root_ang_vel, dof_pos, dof_vel, flat_local_key_pos), dim=-1)
