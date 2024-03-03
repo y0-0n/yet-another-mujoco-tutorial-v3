@@ -469,8 +469,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
                 trgt = self.res_dict['mus']
             trgt *= self.power_scale
 
-            # super().step(ctrl=trgt,nstep=nstep,ctrl_idxs=ctrl_idxs,INCREASE_TICK=INCREASE_TICK)
-            super().step(ctrl=torch.zeros_like(trgt),nstep=nstep,ctrl_idxs=ctrl_idxs,INCREASE_TICK=INCREASE_TICK)
+            super().step(ctrl=trgt,nstep=nstep,ctrl_idxs=ctrl_idxs,INCREASE_TICK=INCREASE_TICK)
             # next root state
             # self.root_states[0] = torch.from_numpy(np.concatenate((self.get_p_body('base'), r2quat(self.get_R_body('base'))[[1,2,3,0]], self.get_qvel_joint('base')[0:3], self.get_qvel_joint('base')[3:6]), axis=-1))
             # self.root_states[0] = torch.from_numpy(np.concatenate((self.get_p_body('root'), r2quat(self.get_R_body('root'))[[1,2,3,0]], self.get_qvel_joint(0)[0:3], self.get_qvel_joint(0)[3:6]), axis=-1))

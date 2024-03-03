@@ -122,7 +122,7 @@ class CommonAgent(a2c_continuous.A2CAgent):
 
     def train(self):
         import wandb
-        wandb.init(project="DeepMimic")
+        wandb.init(name='ThreadRipper', entity='l5vd5', project="DeepMimic")
         wandb.config.update(self.config)
 
         self.init_tensors()
