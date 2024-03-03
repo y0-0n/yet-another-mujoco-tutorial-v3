@@ -31,6 +31,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
                  motion_lib=None, # required
                  pd_ingredients={}, # required
                  max_episode_length=300,
+                 power_scale=1.,
                  mode='amp' #[amp, deepmimic]
                  ):
         """
@@ -57,6 +58,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
         self._motion_lib = motion_lib
         self.max_episode_length = max_episode_length
         self.pd_ingredients = pd_ingredients
+        self.power_scale = power_scale
 
         # Change floor friction
         self.model.geom('floor').friction = np.array([1,0.01,0]) # default: np.array([1,0.01,0])
@@ -465,6 +467,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
                 trgt = self.res_dict['actions']
             else: # Deterministic
                 trgt = self.res_dict['mus']
+            trgt *= self.power_scale
 
             # super().step(ctrl=trgt,nstep=nstep,ctrl_idxs=ctrl_idxs,INCREASE_TICK=INCREASE_TICK)
             super().step(ctrl=torch.zeros_like(trgt),nstep=nstep,ctrl_idxs=ctrl_idxs,INCREASE_TICK=INCREASE_TICK)
