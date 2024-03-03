@@ -27,7 +27,7 @@ from amp.utils.amp_torch_utils import *
 
 # modified for Atlas
 NUM_AMP_OBS_PER_STEP = 132 # [root_h, root_rot, root_vel, root_ang_vel, dof_pos(6d), dof_vel, key_body_pos]
-NUM_DEEPMIMIC_OBS = 99 # [root_p+root_rot+dof_pos(44), root_vel+root_ang_vel+dof_vel(43), key_body_pos(12), COM(3)]
+NUM_DEEPMIMIC_OBS = 132 # [root_p+root_rot+dof_pos(77), root_vel+root_ang_vel+dof_vel(43), key_body_pos(12), COM(3)]
 
 class SMPLRigAMP(SMPLRigAMPBase):
 
@@ -248,8 +248,10 @@ def build_deepmimic_observations(root_states, dof_pos, dof_vel, key_body_pos):
 
     root_rot_obs = root_rot
 
+    dof_obs = dof_to_obs(dof_pos)    
+
     key_body_pos = key_body_pos - root_pos.unsqueeze(-2)
     flat_local_key_pos = key_body_pos.view(key_body_pos.shape[0], key_body_pos.shape[1] * key_body_pos.shape[2])
 
-    obs = torch.cat((root_pos, root_rot_obs, root_vel, root_ang_vel, dof_pos, dof_vel, flat_local_key_pos), dim=-1)
+    obs = torch.cat((root_pos, root_rot_obs, root_vel, root_ang_vel, dof_obs, dof_vel, flat_local_key_pos), dim=-1)
     return obs

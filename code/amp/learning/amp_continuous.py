@@ -613,15 +613,15 @@ class AMPAgent(common_agent.CommonAgent):
         return output
     
     def _calc_deepmimic_rewards(self, deepmimic_obs, motion_times):
-        from amp.poselib.poselib.core import quat_diff
+        # from amp.poselib.poselib.core import quat_diff
         motion_lib = self.vec_env.env._motion_lib_demo
         motion_times = motion_times.flatten()
         motion_ids = motion_lib.sample_motions(motion_times.shape[0]) # TODO : fix this hard code line
         root_pos, root_rot, dof_pos, root_vel, root_ang_vel, dof_vel, key_pos \
             = motion_lib.get_motion_state(motion_ids, motion_times)
         
-        key_pos = key_pos - root_pos.unsqueeze(-2) # local
-        key_pos = key_pos.view(key_pos.shape[0], key_pos.shape[1] * key_pos.shape[2])
+        local_key_pos = key_pos - root_pos.unsqueeze(-2) # local
+        local_key_pos = local_key_pos.view(key_pos.shape[0], key_pos.shape[1] * key_pos.shape[2])
         # root_states = torch.cat([root_pos, root_rot, root_vel, root_ang_vel], dim=-1)
         # deepmimic_obs_demo = build_amp_observations(root_states, dof_pos, dof_vel, key_pos,
         #                               self.vec_env.env.cfg['env']['localRootObs'])
@@ -635,27 +635,27 @@ class AMPAgent(common_agent.CommonAgent):
         root_rot_sample = deepmimic_obs[:, 3:7]
         root_vel_sample = deepmimic_obs[:, 7:10]
         root_ang_vel_sample = deepmimic_obs[:, 10:13]
-        dof_pos_sample = deepmimic_obs[:, 13:50]
-        dof_vel_sample = deepmimic_obs[:, 50:87]
-        key_pos_sample = deepmimic_obs[:, 87:99]
+        dof_pos_sample = deepmimic_obs[:, 13:83]
+        dof_vel_sample = deepmimic_obs[:, 83:120]
+        key_pos_sample = deepmimic_obs[:, 120:132]
 
-        dof_diff = dof_pos_sample - dof_pos#dof_to_obs(dof_pos_sample) - dof_to_obs(dof_pos)
+        dof_diff = dof_pos_sample - dof_to_obs(dof_pos)
         # root_rot_diff = torch.stack(get_euler_xyz(root_rot_sample),axis=1) - torch.stack(get_euler_xyz(root_rot),axis=1) #quat_to_tan_norm(root_rot_sample) - quat_to_tan_norm(root_rot)
         root_rot_diff = quat_diff_rad(root_rot_sample, root_rot).reshape(-1, 1)
         # diff = quat_diff(root_rot_sample, root_rot)
         qpos_reward = torch.cat((dof_diff, root_rot_diff), dim=1)
         qpos_reward = torch.sum(torch.square(qpos_reward),axis=1)
-        qpos_reward = torch.exp(-5e-1*qpos_reward)
+        qpos_reward = torch.exp(-5e-2*qpos_reward)
 
         # angular velocity error
-        dof_vel = torch.cat((root_vel, root_ang_vel, dof_vel), dim=1)
-        dof_vel_sample = torch.cat((root_vel_sample, root_ang_vel_sample, dof_vel_sample), dim=1)
+        # dof_vel = torch.cat((root_vel, root_ang_vel, dof_vel), dim=1)
+        # dof_vel_sample = torch.cat((root_vel_sample, root_ang_vel_sample, dof_vel_sample), dim=1)
         qvel_reward = dof_vel_sample - dof_vel
         qvel_reward = torch.sum(torch.square(qvel_reward),axis=1)
-        qvel_reward = torch.exp(-1e-3*qvel_reward)
+        qvel_reward = torch.exp(-3e-3*qvel_reward)
 
         # key point task position error
-        key_pos_reward = key_pos_sample - key_pos
+        key_pos_reward = key_pos_sample - local_key_pos
         key_pos_reward = torch.sum(torch.square(key_pos_reward),axis=1)
         key_pos_reward = torch.exp(-40*key_pos_reward)
 
