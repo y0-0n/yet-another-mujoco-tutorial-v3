@@ -225,7 +225,7 @@ class AMPAgent(common_agent.CommonAgent):
         # mb_obs = self.experience_buffer.tensor_dict['obses']
         # mb_motion_time = self.experience_buffer.tensor_dict['motion_times']
         # amp_rewards = self._calc_amp_rewards(mb_amp_obs)
-        deepmimic_rewards = self._calc_deepmimic_rewards(self.obs['obs'], infos['motion_times'].transpose(0,1)) # TODO: Check next observation is right
+        deepmimic_rewards = self._calc_deepmimic_rewards(infos['prev_obses'], infos['motion_times'].transpose(0,1)) # TODO: Check next observation is right
         wandb.log(
             {
                 "deepmimic_reward": torch.mean(deepmimic_rewards[0]),
