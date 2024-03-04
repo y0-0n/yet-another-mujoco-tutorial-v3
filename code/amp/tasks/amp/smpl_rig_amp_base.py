@@ -23,7 +23,7 @@ from amp.utils.constant import DOF_BODY_IDS, DOF_OFFSETS
 # 3D joint : 11
 # 1D joint : 4
 
-NUM_OBS = 132# 1 + 6 + 3 + 3 + 70 + 37 + 12 # [(root_h(z-height):1, root_rot:6, root_vel:3, root_ang_vel:3, dof_pos, dof_vel, key_body_pos]
+NUM_OBS = 99# 1 + 6 + 3 + 3 + 70 + 37 + 12 # [(root_h(z-height):1, root_rot:6, root_vel:3, root_ang_vel:3, dof_pos, dof_vel, key_body_pos]
 NUM_ACTIONS = 37    # the number of tendon actuations
 NUM_ACTORS_PER_ENVS = 1 # Added from JTM, if soccer task, 2 actors per envs
 

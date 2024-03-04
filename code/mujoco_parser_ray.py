@@ -12,7 +12,7 @@ from pid import PID_ControllerClass
 import sys
 import gc
 
-NUM_DEEPMIMIC_OBS = 132 # [root_p+root_rot+dof_pos(44), root_vel+root_ang_vel+dof_vel(43), key_body_pos(12), COM(3)]
+NUM_DEEPMIMIC_OBS = 99 # [root_p+root_rot+dof_pos(44), root_vel+root_ang_vel+dof_vel(43), key_body_pos(12), COM(3)]
 
 @ray.remote
 class MuJoCoParserClassRay(MuJoCoParserClass):
@@ -386,8 +386,6 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
             "value_mean_std": self.value_mean_std,
         }
         return result_dict
-    
-        # def pd_step_loop(self,model,running_mean_std,value_mean_std,ctrl_idxs=None,nstep=1,INCREASE_TICK=True):
     
     def step_loop(self,ray_dict,ctrl_idxs=None,nstep=1,INCREASE_TICK=True,test=False):
         # from amp.tasks.amp.common_rig_amp_base import compute_humanoid_reward
