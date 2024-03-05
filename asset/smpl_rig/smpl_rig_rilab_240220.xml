@@ -377,41 +377,41 @@
 
     <actuator>
         <!-- [1] ~ [4] -->
-        <motor name="root1"       gear="120" joint="root1" />
-        <motor name="root2"       gear="120" joint="root2" />
-        <motor name="root3"       gear="120" joint="root3" />
-        <motor name="spine1"       gear="120" joint="spine1" />
-        <motor name="spine2"       gear="120" joint="spine2" />
-        <motor name="spine3"       gear="120" joint="spine3" />
+        <motor name="root1"       gear="60" joint="root1" />
+        <motor name="root2"       gear="60" joint="root2" />
+        <motor name="root3"       gear="60" joint="root3" />
+        <motor name="spine1"       gear="60" joint="spine1" />
+        <motor name="spine2"       gear="60" joint="spine2" />
+        <motor name="spine3"       gear="60" joint="spine3" />
         <!-- [33] ~ [35] -->
-        <motor name="head1"       gear="120" joint="head1" />
-        <motor name="head2"       gear="120" joint="head2" />
-        <motor name="head3"       gear="120" joint="head3" />
+        <motor name="head1"       gear="10" joint="head1" />
+        <motor name="head2"       gear="10" joint="head2" />
+        <motor name="head3"       gear="10" joint="head3" />
 
         <!-- [12] ~ [18] -->
         <!-- <motor name="l_collar1"       gear="100" joint="l_collar1" />
         <motor name="l_collar2"       gear="100" joint="l_collar2" />
         <motor name="l_collar3"       gear="100" joint="l_collar3" /> -->
-        <motor name="l_shoulder1"       gear="120" joint="l_shoulder1" />
-        <motor name="l_shoulder2"       gear="120" joint="l_shoulder2" />
-        <motor name="l_shoulder3"       gear="120" joint="l_shoulder3" />
-        <motor name="l_elbow"       gear="120" joint="l_elbow" />
-        <motor name="l_wrist1"       gear="120" joint="l_wrist1" />
-        <motor name="l_wrist2"       gear="120" joint="l_wrist2" />
-        <motor name="l_wrist3"       gear="120" joint="l_wrist3" />
+        <motor name="l_shoulder1"       gear="60" joint="l_shoulder1" />
+        <motor name="l_shoulder2"       gear="60" joint="l_shoulder2" />
+        <motor name="l_shoulder3"       gear="60" joint="l_shoulder3" />
+        <motor name="l_elbow"       gear="30" joint="l_elbow" />
+        <motor name="l_wrist1"       gear="10" joint="l_wrist1" />
+        <motor name="l_wrist2"       gear="10" joint="l_wrist2" />
+        <motor name="l_wrist3"       gear="10" joint="l_wrist3" />
         
         <!-- [5] ~ [11] -->
         <!-- <motor name="r_collar1"       gear="100" joint="r_collar1" />
         <motor name="r_collar2"       gear="100" joint="r_collar2" />
         <motor name="r_collar3"       gear="100" joint="r_collar3" /> -->
 
-        <motor name="r_shoulder1"       gear="120" joint="r_shoulder1" />
-        <motor name="r_shoulder2"       gear="120" joint="r_shoulder2" />
-        <motor name="r_shoulder3"       gear="120" joint="r_shoulder3" />
-        <motor name="r_elbow"       gear="120" joint="r_elbow" />
-        <motor name="r_wrist1"       gear="120" joint="r_wrist1" />
-        <motor name="r_wrist2"       gear="120" joint="r_wrist2" />
-        <motor name="r_wrist3"       gear="120" joint="r_wrist3" />
+        <motor name="r_shoulder1"       gear="60" joint="r_shoulder1" />
+        <motor name="r_shoulder2"       gear="60" joint="r_shoulder2" />
+        <motor name="r_shoulder3"       gear="60" joint="r_shoulder3" />
+        <motor name="r_elbow"       gear="30" joint="r_elbow" />
+        <motor name="r_wrist1"       gear="10" joint="r_wrist1" />
+        <motor name="r_wrist2"       gear="10" joint="r_wrist2" />
+        <motor name="r_wrist3"       gear="10" joint="r_wrist3" />
         
 
         <!-- [26] ~ [32] -->
@@ -419,18 +419,18 @@
         <motor name="l_pelvis2"       gear="120" joint="l_pelvis2" />
         <motor name="l_pelvis3"       gear="120" joint="l_pelvis3" />
         <motor name="l_knee"       gear="120" joint="l_knee" />
-        <motor name="l_ankle1"       gear="120" joint="l_ankle1" />
-        <motor name="l_ankle2"       gear="120" joint="l_ankle2" />
-        <motor name="l_ankle3"       gear="120" joint="l_ankle3" />
+        <motor name="l_ankle1"       gear="30" joint="l_ankle1" />
+        <motor name="l_ankle2"       gear="30" joint="l_ankle2" />
+        <motor name="l_ankle3"       gear="30" joint="l_ankle3" />
 
         <!-- [19] ~ [25] -->
         <motor name="r_pelvis1"       gear="120" joint="r_pelvis1" />
         <motor name="r_pelvis2"       gear="120" joint="r_pelvis2" />
         <motor name="r_pelvis3"       gear="120" joint="r_pelvis3" />
         <motor name="r_knee"       gear="120" joint="r_knee" />
-        <motor name="r_ankle1"       gear="120" joint="r_ankle1" />
-        <motor name="r_ankle2"       gear="120" joint="r_ankle2" />
-        <motor name="r_ankle3"       gear="120" joint="r_ankle3" />
+        <motor name="r_ankle1"       gear="30" joint="r_ankle1" />
+        <motor name="r_ankle2"       gear="30" joint="r_ankle2" />
+        <motor name="r_ankle3"       gear="30" joint="r_ankle3" />
     </actuator>
 
     <!-- exclude -->
