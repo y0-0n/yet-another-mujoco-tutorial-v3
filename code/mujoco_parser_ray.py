@@ -528,8 +528,8 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
             self.actions[n] = self.res_dict['actions']
             self.mus[n] = self.res_dict['mus']
             self.sigmas[n] = self.res_dict['sigmas']
-            self.motion_times[n] = torch.tensor(self.motion_time)
             self.motion_time += self.dt
+            self.motion_times[n] = torch.tensor(self.motion_time)
 
         result_dict = {
             # "actor_root_states" : actor_root_states,
