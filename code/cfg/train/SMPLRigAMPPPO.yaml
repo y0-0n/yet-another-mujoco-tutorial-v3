@@ -62,7 +62,7 @@ params:
         gamma: 0.99
         tau: 0.95
         learning_rate: 5e-4
-        lr_schedule: constant
+        lr_schedule: adaptive
         kl_threshold: 0.008
         score_to_win: 20000
         max_epochs: ${resolve_default:5000,${....max_iterations}}
@@ -79,7 +79,7 @@ params:
         critic_coef: 4
         clip_value: False
         seq_len: 4
-        bounds_loss_coef: 10
+        bounds_loss_coef: 0.0001
         amp_obs_demo_buffer_size: 200000
         amp_replay_buffer_size: 1000000
         amp_replay_keep_prob: 0.01

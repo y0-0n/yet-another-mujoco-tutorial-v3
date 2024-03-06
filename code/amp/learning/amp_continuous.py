@@ -47,7 +47,7 @@ import wandb
 from tensorboardX import SummaryWriter
 # SMPL
 from amp.tasks.smpl_rig_amp import build_amp_observations
-from amp.tasks.amp.smpl_rig_amp_base import dof_to_obs
+from amp.tasks.amp.smpl_rig_amp_base import dof_to_obs,dof_to_diff
 
 # from util import r2rpy, quat2r
 
@@ -225,7 +225,7 @@ class AMPAgent(common_agent.CommonAgent):
         # mb_obs = self.experience_buffer.tensor_dict['obses']
         # mb_motion_time = self.experience_buffer.tensor_dict['motion_times']
         # amp_rewards = self._calc_amp_rewards(mb_amp_obs)
-        deepmimic_rewards = self._calc_deepmimic_rewards(infos['prev_obses'], infos['motion_times'].transpose(0,1)) # TODO: Check next observation is right
+        deepmimic_rewards = self._calc_deepmimic_rewards(self.obs['obs'], infos['motion_times'].transpose(0,1)) # TODO: Check next observation is right
         wandb.log(
             {
                 "deepmimic_reward": torch.mean(deepmimic_rewards[0]),
@@ -644,24 +644,24 @@ class AMPAgent(common_agent.CommonAgent):
         root_rot_diff = quat_diff_rad(root_rot_sample, root_rot).reshape(-1, 1)
         # diff = quat_diff(root_rot_sample, root_rot)
         qpos_reward = torch.cat((dof_diff, root_rot_diff), dim=1)
-        qpos_reward = torch.sum(torch.square(qpos_reward),axis=1)
-        qpos_reward = torch.exp(-2*qpos_reward)
+        qpos_reward = torch.sum(torch.abs(qpos_reward),axis=1)
+        qpos_reward = torch.exp(-1.5*qpos_reward)
 
         # angular velocity error
         # dof_vel = torch.cat((root_vel, root_ang_vel, dof_vel), dim=1)
         # dof_vel_sample = torch.cat((root_vel_sample, root_ang_vel_sample, dof_vel_sample), dim=1)
         qvel_reward = dof_vel_sample - dof_vel
-        qvel_reward = torch.sum(torch.square(qvel_reward),axis=1)
+        qvel_reward = torch.sum(torch.abs(qvel_reward),axis=1)
         qvel_reward = torch.exp(-1e-1*qvel_reward)
 
         # key point task position error
         key_pos_reward = key_pos_sample - local_key_pos
-        key_pos_reward = torch.sum(torch.square(key_pos_reward),axis=1)
+        key_pos_reward = torch.sum(torch.abs(key_pos_reward),axis=1)
         key_pos_reward = torch.exp(-40*key_pos_reward)
 
         # COM error
         root_position_diff = root_pos_sample[...,:3] - root_pos[...,:3]
-        root_position_reward = torch.sum(torch.square(root_position_diff),axis=1)
+        root_position_reward = torch.sum(torch.abs(root_position_diff),axis=1)
         root_position_reward = torch.exp(-10*root_position_reward)
 
         reward = (0.1*root_position_reward + 0.65*qpos_reward + 0.1*qvel_reward + 0.15*key_pos_reward)

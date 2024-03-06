@@ -207,7 +207,7 @@ class SMPLRigAMPBase(VecTask):
                                                         max_episode_length=self.max_episode_length,
                                                         horizon_length=self.horizon_length,
                                                         mode='deepmimic',
-                                                        power_scale=0.2,
+                                                        power_scale=1,
                                                         # pd_ingredients={"pd_offset": self._pd_action_offset, "pd_scale": self._pd_action_scale}
                                                         ) for i in range(self.num_envs)]
 
@@ -503,6 +503,49 @@ def dof_to_obs(pose):
         dof_obs_offset += dof_obs_size
 
     return dof_obs
+
+@torch.jit.script
+def dof_to_diff(pose1, pose2):
+    # type: (Tensor, Tensor) -> Tensor
+    dof_obs_size = 70
+    dof_offsets = [0, 3, 6, 9,
+                   12, 13, 16,
+                   19, 20, 23,
+                   26, 27, 30,
+                   33, 34, 37]
+                #     [0, 3, 6, 7, 8, 9, 10,
+                #    13, 16, 17, 18, 19, 20]  # joint number offset of each body
+    # dof_offsets = [0, 3, 4, 7, 8, 11,
+    #                14, 15, 18, 21,
+    #                22, 25, 28,
+    #                29, 32, 35]  # joint number offset of each body
+
+    num_joints = len(dof_offsets) - 1
+
+    dof_obs_shape = pose1.shape[:-1] + (num_joints,)
+    dof_diff = torch.zeros(dof_obs_shape, device=pose1.device)
+    # dof_obs2 = torch.zeros(dof_obs_shape, device=pose1.device)
+    dof_obs_offset = 0
+
+    for j in range(num_joints):
+        dof_offset = dof_offsets[j]
+        dof_size = dof_offsets[j + 1] - dof_offsets[j]
+        joint_pose1 = pose1[:, dof_offset:(dof_offset + dof_size)]
+        joint_pose2 = pose2[:, dof_offset:(dof_offset + dof_size)]
+
+        # assume this is a spherical joint
+        if (dof_size == 3):
+            # joint_pose_q = exp_map_to_quat(joint_pose)
+            joint_pose_q1 = quat_from_euler_xyz(joint_pose1[:,0], joint_pose1[:,1], joint_pose1[:,2])
+            joint_pose_q2 = quat_from_euler_xyz(joint_pose2[:,0], joint_pose2[:,1], joint_pose2[:,2])
+            diff_scalar = quat_diff_rad(joint_pose_q1,joint_pose_q2)
+        else:
+            diff_scalar = torch.abs(joint_pose1-joint_pose2)[0]
+
+        dof_diff[:, j] = diff_scalar
+
+    return dof_diff
+
 
 @torch.jit.script
 def compute_humanoid_observations(root_states, dof_pos, dof_vel, key_body_pos, local_root_obs):

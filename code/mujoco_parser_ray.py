@@ -438,7 +438,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
                     self.rigid_body_pos[0] = torch.from_numpy(self.get_ps())
                     self.key_body_pos[0] = self.rigid_body_pos[:, self._key_body_ids, :]
                     self.obs = build_deepmimic_observations(self.root_states, self.dof_pos, self.dof_vel, self.key_body_pos)
-                self.step(INCREASE_TICK=False)
+                super().step(INCREASE_TICK=False)
 
             if self.mode == 'amp':
                 self.prev_obses[n] = self.obs.clone()
@@ -529,7 +529,6 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
             self.mus[n] = self.res_dict['mus']
             self.sigmas[n] = self.res_dict['sigmas']
             self.motion_times[n] = torch.tensor(self.motion_time)
-
             self.motion_time += self.dt
 
         result_dict = {
