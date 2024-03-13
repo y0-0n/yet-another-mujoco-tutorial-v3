@@ -99,6 +99,7 @@ class CommonAgent(a2c_continuous.A2CAgent):
 
         self.use_experimental_cv = self.config.get('use_experimental_cv', True)
         self.dataset = amp_datasets.AMPDataset(self.batch_size, self.minibatch_size, self.is_discrete, self.is_rnn, self.ppo_device, self.seq_len)
+        self.dataset_MPC = amp_datasets.AMPDataset(4096, 4096, self.is_discrete, self.is_rnn, self.ppo_device, self.seq_len)
         self.algo_observer.after_init(self)
         
         return
@@ -113,9 +114,9 @@ class CommonAgent(a2c_continuous.A2CAgent):
             env.init_models.remote(model=self.model.to('cpu'),running_mean_std=self.running_mean_std.to('cpu'),value_mean_std=self.value_mean_std.to('cpu'))
         
         # reset device
-        # self.model.cuda()
-        # self.running_mean_std.cuda()
-        # self.value_mean_std.cuda()
+        self.model.cuda()
+        self.running_mean_std.cuda()
+        self.value_mean_std.cuda()
 
         self.tensor_list += ['next_obses']
         return
@@ -494,7 +495,6 @@ class CommonAgent(a2c_continuous.A2CAgent):
         # obs = obs_dict['obs'] # TODO: yoon0-0
         obs = obs_dict
         processed_obs = self._preproc_obs(obs)
-        # processed_obs = self._preproc_obs(obs)
         value = self.model.a2c_network.eval_critic(processed_obs)
 
         if self.normalize_value:
@@ -504,7 +504,12 @@ class CommonAgent(a2c_continuous.A2CAgent):
     def _actor_loss(self, old_action_log_probs_batch, action_log_probs, advantage, curr_e_clip):
         clip_frac = None
         if (self.ppo):
-            ratio = torch.exp(old_action_log_probs_batch - action_log_probs)
+            # TODO y0-0n: check
+            ratio = torch.exp(old_action_log_probs_batch - action_log_probs)#.detach()
+            # too_big_idxs = torch.where(ratio_>1e5)
+            # ratio_[too_big_idxs] = torch.exp((old_action_log_probs_batch[too_big_idxs] - action_log_probs[too_big_idxs])/10)
+            # ratio = ratio_.clone()
+            
             surr1 = advantage * ratio
             surr2 = advantage * torch.clamp(ratio, 1.0 - curr_e_clip,
                                     1.0 + curr_e_clip)

@@ -11,7 +11,7 @@ from util import *
 from pid import PID_ControllerClass
 import sys
 import gc
-
+from pretrain.policy import GaussianPolicy
 NUM_DEEPMIMIC_OBS = 99 # [root_p+root_rot+dof_pos(44), root_vel+root_ang_vel+dof_vel(43), key_body_pos(12), COM(3)]
 
 @ray.remote
@@ -100,6 +100,20 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
         self.res_dict = None
         self.motion_time = 0
         # self.body_with_joint_idxs = np.unique(np.array([self.model.joint(j).bodyid for j in self.rev_joint_names]))
+
+        # pretrain model
+        # TODO y0-0n: fix hard code
+        self.pretrain_model = GaussianPolicy(
+            input_dim=97,
+            output_dim=37,
+            hidden_dim=512,
+            is_deterministic=True,
+        )
+
+        self.pretrain_model.load_state_dict(torch.load('code/pretrain/240313_walk_keypos.pth'))
+
+        self.pretrain_model.running_mean_std.eval()
+        self.pretrain_model.eval()
 
         if (self.VERBOSE):
             print("PID controller ready")
@@ -458,13 +472,15 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
                 'rnn_states' : None
             }
             with torch.no_grad():
+                root_state_for_pretrain_model = torch.from_numpy(np.concatenate((self.get_p_body('base')[2:], r2quat(self.get_R_body('base')), self.get_qvel_joint('base')[0:3], self.get_qvel_joint('base')[3:6]), axis=-1)).unsqueeze(0).type(torch.float32)
+                pretrain_action, _, _, _ = self.pretrain_model(torch.cat((root_state_for_pretrain_model, self.dof_pos, self.dof_vel, self.key_body_pos.reshape(-1, 12)), dim=1))
                 self.res_dict = self._model(input_dict)
 
             if not test: # Stochastic
-                self.res_dict['values'] = self.value_mean_std(self.res_dict['values'], True)
-                trgt = self.res_dict['actions']
+                self.res_dict['values'] = self.value_mean_std(self.res_dict['values'], True) # TODO y0-0n: Check this line
+                trgt = self.res_dict['actions'] + pretrain_action
             else: # Deterministic
-                trgt = self.res_dict['mus']
+                trgt = self.res_dict['mus'] + pretrain_action
             trgt *= self.power_scale
 
             super().step(ctrl=trgt,nstep=nstep,ctrl_idxs=ctrl_idxs,INCREASE_TICK=INCREASE_TICK)

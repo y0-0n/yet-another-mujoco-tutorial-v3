@@ -193,7 +193,7 @@ class AMPAgent(common_agent.CommonAgent):
             self.experience_buffer.update_data('dones', n, done)
             self.experience_buffer.update_data('amp_obs', n, amp_obs)
 
-            terminated = terminate.float()#infos['terminate'].float()
+            terminated = terminate.float()
             terminated = terminated.unsqueeze(-1)
             next_vals = self._eval_critic(obs).to(self.device)
             next_vals *= (1.0 - terminated)
@@ -252,13 +252,111 @@ class AMPAgent(common_agent.CommonAgent):
 
 
     def prepare_dataset(self, batch_dict):
+        # batch_dict=self.concat_MPC_dataset(batch_dict)
         super().prepare_dataset(batch_dict)
         # y0-0n: AMP
         # self.dataset.values_dict['amp_obs'] = batch_dict['amp_obs']
         # self.dataset.values_dict['amp_obs_demo'] = batch_dict['amp_obs_demo']
         # self.dataset.values_dict['amp_obs_replay'] = batch_dict['amp_obs_replay']
-        self.dataset.values_dict['amp_obs'] = batch_dict['amp_obs']
         return
+
+    def prepare_dataset_MPC(self, batch_dict):
+        obses = batch_dict['obses']
+        returns = batch_dict['returns']
+        dones = batch_dict['dones']
+        values = batch_dict['values']
+        actions = batch_dict['actions']
+        neglogpacs = batch_dict['neglogpacs']
+        mus = batch_dict['mus']
+        sigmas = batch_dict['sigmas']
+        rnn_states = batch_dict.get('rnn_states', None)
+        rnn_masks = batch_dict.get('rnn_masks', None)
+
+        advantages = returns - values
+
+        if self.normalize_value:
+            values = self.value_mean_std(values)
+            returns = self.value_mean_std(returns)
+
+        advantages = torch.sum(advantages, axis=1)
+
+        if self.normalize_advantage:
+            if self.is_rnn:
+                advantages = torch_ext.normalization_with_masks(advantages, rnn_masks)
+            else:
+                advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+
+        dataset_dict = {}
+        dataset_dict['old_values'] = values
+        dataset_dict['old_logp_actions'] = neglogpacs
+        dataset_dict['advantages'] = advantages
+        dataset_dict['returns'] = returns
+        dataset_dict['actions'] = actions
+        dataset_dict['obs'] = obses
+        dataset_dict['rnn_states'] = rnn_states
+        dataset_dict['rnn_masks'] = rnn_masks
+        dataset_dict['mu'] = mus
+        dataset_dict['sigma'] = sigmas
+
+        self.dataset_MPC.update_values_dict(dataset_dict)
+    
+    # def concat_MPC_dataset(self, batch_dict):
+    def build_MPC_dataset(self):
+        MPC_obs = self._MPC_dataset_buffer._data_buf['obs'][:self._MPC_dataset_buffer._total_count]
+        MPC_action = self._MPC_dataset_buffer._data_buf['action'][:self._MPC_dataset_buffer._total_count]
+        # actions=torch.cat((batch_dict['actions'], MPC_actions[:-1]))
+        # obses=torch.cat((batch_dict['obses'], MPC_obses[:-1]))
+        # next_obses=torch.cat((batch_dict['obses'], MPC_obses[1:]))
+        actions = MPC_action[:-1].clone()
+        prev_obses = MPC_obs[:-1].clone()
+        next_obses = MPC_obs[1:].clone()
+        MPC_motion_times = torch.zeros((MPC_obs.shape[0],), device=self.ppo_device)
+        for L in range(315): # TODO y0-0n: hard coding
+            for H in range(50):
+                MPC_motion_times[50*L+H] = 0.0833 * L + 0.0833 * (H+1)
+        motion_times = MPC_motion_times[1:].clone()
+        input_dict = {
+            'is_train': True,
+            'prev_actions': actions, #torch.cat((batch_dict['actions'], self._MPC_dataset_buffer.sample(self._MPC_dataset_buffer._head)['action'])),
+            'obs': prev_obses #torch.cat((batch_dict['obses'], self._MPC_dataset_buffer.sample(self._MPC_dataset_buffer._head)['obs'])),
+        }
+        res_dict = self.model(input_dict)
+        res_dict['values'] = self.value_mean_std(res_dict['values'], True)
+        for key in res_dict:
+            if type(res_dict[key]) == type(None):
+                continue
+            res_dict[key] = res_dict[key].detach()
+        del res_dict['entropy']
+        res_dict['neglogpacs'] = res_dict['prev_neglogp']
+        res_dict['obses'] = prev_obses
+        res_dict['next_obses'] = next_obses
+        res_dict['actions'] = actions
+        res_dict['played_frames'] = actions.shape[0]
+        del res_dict['prev_neglogp']
+        # res_dict['played_frames']=batch_dict['actions'].shape[0]+self._MPC_dataset_buffer._head
+        MPC_deepmimic_rewards, reward_info = self._calc_deepmimic_rewards(next_obses.unsqueeze(0), motion_times.cpu().numpy(), deepmimic=True)
+
+        MPC_dones=torch.zeros((self._MPC_dataset_buffer._head-1), device=self.ppo_device, dtype=torch.float32)
+        MPC_dones[49::50]=1 # horizon = 50
+        MPC_terminates = MPC_dones.clone()
+        MPC_terminates = MPC_terminates.unsqueeze(-1)
+        # dones=torch.cat((batch_dict['dones'], MPC_dones))
+        res_dict['dones']=MPC_dones
+
+        MPC_next_values = self._eval_critic(next_obses).to(self.device).detach()
+        MPC_next_values *= (1.0 - MPC_terminates)
+        MPC_values=res_dict['values'].unsqueeze(1)
+
+        # values=res_dict['values'].unsqueeze(1)
+        MPC_advs = self.discount_values(MPC_dones.unsqueeze(1), MPC_values, MPC_deepmimic_rewards, MPC_next_values.unsqueeze(1))
+        MPC_returns = MPC_advs + MPC_values
+        res_dict['returns'] = MPC_returns.reshape(-1, 1)
+
+        return res_dict
+
+        # batch_dict['amp_obs'] = torch.zeros((batch_dict['returns'].shape[0], batch_dict['amp_obs'].shape[-1]))
+
+        # return batch_dict
 
     def train_epoch(self):
         play_time_start = time.time()
@@ -284,10 +382,17 @@ class AMPAgent(common_agent.CommonAgent):
         # else:
         #     batch_dict['amp_obs_replay'] = self._amp_replay_buffer.sample(num_obs_samples)['amp_obs']
 
+        # y0-0n: MPC
+        # MPC_batch_dict = self.build_MPC_dataset()
+        # for key in batch_dict.keys() - ['amp_obs', 'played_frames']:
+        #     batch_dict[key] = torch.cat((batch_dict[key],MPC_batch_dict[key]))
+
+        # batch_dict['played_frames'] = batch_dict['played_frames'] + MPC_batch_dict['played_frames']
         self.set_train()
 
         self.curr_frames = batch_dict.pop('played_frames')
         self.prepare_dataset(batch_dict)
+        # self.prepare_dataset_MPC(MPC_batch_dict) # TODO y0-0n: don't need to prepare at every epoch
         self.algo_observer.after_steps()
 
         if self.has_central_value:
@@ -317,6 +422,25 @@ class AMPAgent(common_agent.CommonAgent):
                 else:
                     for k, v in curr_train_info.items():
                         train_info[k].append(v)
+
+            # y0-0n: MPC dataset loop
+            # for i in range(len(self.dataset_MPC)):
+            #     curr_train_info = self.train_actor_critic(self.dataset_MPC[i])
+                
+                # if self.schedule_type == 'legacy':  
+                #     if self.multi_gpu:
+                #         curr_train_info['kl'] = self.hvd.average_value(curr_train_info['kl'], 'ep_kls')
+                #     self.last_lr, self.entropy_coef = self.scheduler.update(self.last_lr, self.entropy_coef, self.epoch_num, 0, curr_train_info['kl'].item())
+                #     self.update_lr(self.last_lr)
+
+                # if (train_info is None):
+                #     train_info = dict()
+                #     for k, v in curr_train_info.items():
+                #         train_info[k] = [v]
+                # else:
+                #     for k, v in curr_train_info.items():
+                #         train_info[k].append(v)
+
             
             av_kls = torch_ext.mean_list(train_info['kl'])
 
@@ -337,7 +461,7 @@ class AMPAgent(common_agent.CommonAgent):
         update_time = update_time_end - update_time_start
         total_time = update_time_end - play_time_start
 
-        self._store_replay_amp_obs(batch_dict['amp_obs'])
+        # self._store_replay_amp_obs(batch_dict['amp_obs'])
 
         train_info['play_time'] = play_time
         train_info['update_time'] = update_time
@@ -494,6 +618,9 @@ class AMPAgent(common_agent.CommonAgent):
     def _init_train(self):
         super()._init_train()
         self._init_amp_demo_buf()
+        # y0-0n
+        # self._init_MPC_dataset_buf()
+        # self._fetch_MPC_experience_buf()
         return
 
     def _disc_loss(self, disc_agent_logit, disc_demo_logit, obs_demo):
@@ -568,9 +695,8 @@ class AMPAgent(common_agent.CommonAgent):
         replay_buffer_size = int(self.config['amp_replay_buffer_size'])
         self._amp_replay_buffer = replay_buffer.ReplayBuffer(replay_buffer_size, self.ppo_device)
 
-        # # deep_mimic
-        # self.experience_buffer.tensor_dict['motion_times'] = torch.zeros(batch_shape + (1,),
-        #                                                             device=self.ppo_device)
+        # y0-0n: MPC dataset
+        self._MPC_dataset_buffer = replay_buffer.ReplayBuffer(replay_buffer_size, self.ppo_device)
 
         self.tensor_list += ['amp_obs']
         return
@@ -584,6 +710,22 @@ class AMPAgent(common_agent.CommonAgent):
             self._amp_obs_demo_buffer.store({'amp_obs': curr_samples})
 
         return
+    
+    def _init_MPC_dataset_buf(self):
+        import pickle
+        with open(file='asset/smpl_rig/motion/MPC dataset 0309.pkl', mode='rb') as f:
+            dataset = pickle.load(f)
+        
+        N = dataset['root_pos'].shape[0]
+        
+        local_key_pos_flat = dataset['local_key_pos'].reshape(N, 12)
+        obs_np = np.concatenate((dataset['root_pos'], dataset['root_rot'], dataset['root_vel'], dataset['root_ang_vel'], dataset['dof_pos'], dataset['dof_vel'], local_key_pos_flat), axis=1)
+        obs_tensor = torch.tensor(obs_np)
+        act_tensor = torch.tensor(dataset['action'])
+        self._MPC_dataset_buffer.store({'obs': obs_tensor, 'action': act_tensor})
+
+    # def _fetch_MPC_experience_buf(self):
+    #     self._MPC_dataset_buffer
     
     def _update_amp_demos(self):
         new_amp_obs_demo = self._fetch_amp_obs_demo(self._amp_batch_size)
@@ -612,7 +754,7 @@ class AMPAgent(common_agent.CommonAgent):
         }
         return output
     
-    def _calc_deepmimic_rewards(self, deepmimic_obs, motion_times):
+    def _calc_deepmimic_rewards(self, deepmimic_obs, motion_times, deepmimic=False):
         # from amp.poselib.poselib.core import quat_diff
         motion_lib = self.vec_env.env._motion_lib_demo
         motion_times = motion_times.flatten()
@@ -620,6 +762,8 @@ class AMPAgent(common_agent.CommonAgent):
         root_pos, root_rot, dof_pos, root_vel, root_ang_vel, dof_vel, key_pos \
             = motion_lib.get_motion_state(motion_ids, motion_times)
         
+        reward_shape = deepmimic_obs.shape[:-1]
+
         local_key_pos = key_pos - root_pos.unsqueeze(-2) # local
         local_key_pos = local_key_pos.view(key_pos.shape[0], key_pos.shape[1] * key_pos.shape[2])
         # root_states = torch.cat([root_pos, root_rot, root_vel, root_ang_vel], dim=-1)
@@ -665,7 +809,9 @@ class AMPAgent(common_agent.CommonAgent):
         root_position_reward = torch.exp(-10*root_position_reward)
 
         reward = (0.1*root_position_reward + 0.65*qpos_reward + 0.1*qvel_reward + 0.15*key_pos_reward)
-        reward = reward.view(self.num_actors, self.horizon_length).transpose(0, 1).unsqueeze(2)
+        # if not deepmimic:
+        reward = reward.view(reward_shape).transpose(0, 1).unsqueeze(2)
+
 
         return reward, {"qpos": qpos_reward, "qvel": qvel_reward, "key_pos": key_pos_reward, "root_position": root_position_reward}
 
