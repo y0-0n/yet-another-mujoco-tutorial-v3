@@ -472,15 +472,15 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
                 'rnn_states' : None
             }
             with torch.no_grad():
-                root_state_for_pretrain_model = torch.from_numpy(np.concatenate((self.get_p_body('base')[2:], r2quat(self.get_R_body('base')), self.get_qvel_joint('base')[0:3], self.get_qvel_joint('base')[3:6]), axis=-1)).unsqueeze(0).type(torch.float32)
-                pretrain_action, _, _, _ = self.pretrain_model(torch.cat((root_state_for_pretrain_model, self.dof_pos, self.dof_vel, self.key_body_pos.reshape(-1, 12)), dim=1))
+                # root_state_for_pretrain_model = torch.from_numpy(np.concatenate((self.get_p_body('base')[2:], r2quat(self.get_R_body('base')), self.get_qvel_joint('base')[0:3], self.get_qvel_joint('base')[3:6]), axis=-1)).unsqueeze(0).type(torch.float32)
+                # pretrain_action, _, _, _ = self.pretrain_model(torch.cat((root_state_for_pretrain_model, self.dof_pos, self.dof_vel, self.key_body_pos.reshape(-1, 12)), dim=1))
                 self.res_dict = self._model(input_dict)
 
             if not test: # Stochastic
                 self.res_dict['values'] = self.value_mean_std(self.res_dict['values'], True) # TODO y0-0n: Check this line
-                trgt = self.res_dict['actions'] + pretrain_action
+                trgt = self.res_dict['actions'] #+ pretrain_action
             else: # Deterministic
-                trgt = self.res_dict['mus'] + pretrain_action
+                trgt = self.res_dict['mus'] #+ pretrain_action
             trgt *= self.power_scale
 
             super().step(ctrl=trgt,nstep=nstep,ctrl_idxs=ctrl_idxs,INCREASE_TICK=INCREASE_TICK)

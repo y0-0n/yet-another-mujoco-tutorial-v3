@@ -504,7 +504,7 @@ class CommonAgent(a2c_continuous.A2CAgent):
     def _actor_loss(self, old_action_log_probs_batch, action_log_probs, advantage, curr_e_clip):
         clip_frac = None
         if (self.ppo):
-            # TODO y0-0n: check
+            # TODO y0-0n: MPC dataset
             ratio = torch.exp(old_action_log_probs_batch - action_log_probs)#.detach()
             # too_big_idxs = torch.where(ratio_>1e5)
             # ratio_[too_big_idxs] = torch.exp((old_action_log_probs_batch[too_big_idxs] - action_log_probs[too_big_idxs])/10)

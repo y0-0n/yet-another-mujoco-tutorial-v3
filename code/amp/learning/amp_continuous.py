@@ -244,7 +244,7 @@ class AMPAgent(common_agent.CommonAgent):
         batch_dict['returns'] = a2c_common.swap_and_flatten01(mb_returns)
         batch_dict['played_frames'] = self.batch_size
 
-        # y0-0n: DeepMimic
+        # y0-0n: AMP
         # for k, v in amp_rewards.items():
         #     batch_dict[k] = a2c_common.swap_and_flatten01(v)
 
@@ -313,7 +313,7 @@ class AMPAgent(common_agent.CommonAgent):
         MPC_motion_times = torch.zeros((MPC_obs.shape[0],), device=self.ppo_device)
         for L in range(315): # TODO y0-0n: hard coding
             for H in range(50):
-                MPC_motion_times[50*L+H] = 0.0833 * L + 0.0833 * (H+1)
+                MPC_motion_times[50*L+H] = 0.00833 * (L + H+1)
         motion_times = MPC_motion_times[1:].clone()
         input_dict = {
             'is_train': True,
@@ -382,12 +382,12 @@ class AMPAgent(common_agent.CommonAgent):
         # else:
         #     batch_dict['amp_obs_replay'] = self._amp_replay_buffer.sample(num_obs_samples)['amp_obs']
 
-        # y0-0n: MPC
-        # MPC_batch_dict = self.build_MPC_dataset()
-        # for key in batch_dict.keys() - ['amp_obs', 'played_frames']:
-        #     batch_dict[key] = torch.cat((batch_dict[key],MPC_batch_dict[key]))
+        # y0-0n: Concat MPC Dataset
+        MPC_batch_dict = self.build_MPC_dataset()
+        for key in batch_dict.keys() - ['amp_obs', 'played_frames']:
+            batch_dict[key] = torch.cat((batch_dict[key],MPC_batch_dict[key]))
 
-        # batch_dict['played_frames'] = batch_dict['played_frames'] + MPC_batch_dict['played_frames']
+        batch_dict['played_frames'] = batch_dict['played_frames'] + MPC_batch_dict['played_frames']
         self.set_train()
 
         self.curr_frames = batch_dict.pop('played_frames')
@@ -517,6 +517,7 @@ class AMPAgent(common_agent.CommonAgent):
 
         with torch.cuda.amp.autocast(enabled=self.mixed_precision):
             res_dict = self.model(batch_dict)
+            res_dict['prev_neglogp'] = torch.min(res_dict['prev_neglogp'], torch.ones_like(res_dict['prev_neglogp'])*1e4)
             action_log_probs = res_dict['prev_neglogp']
             values = res_dict['values']
             entropy = res_dict['entropy']
@@ -618,8 +619,8 @@ class AMPAgent(common_agent.CommonAgent):
     def _init_train(self):
         super()._init_train()
         self._init_amp_demo_buf()
-        # y0-0n
-        # self._init_MPC_dataset_buf()
+        # y0-0n: MPC dataset
+        self._init_MPC_dataset_buf()
         # self._fetch_MPC_experience_buf()
         return
 
@@ -789,7 +790,7 @@ class AMPAgent(common_agent.CommonAgent):
         # diff = quat_diff(root_rot_sample, root_rot)
         qpos_reward = torch.cat((dof_diff, root_rot_diff), dim=1)
         qpos_reward = torch.sum(torch.abs(qpos_reward),axis=1)
-        qpos_reward = torch.exp(-1.5*qpos_reward)
+        qpos_reward = torch.exp(-1*qpos_reward)
 
         # angular velocity error
         # dof_vel = torch.cat((root_vel, root_ang_vel, dof_vel), dim=1)
