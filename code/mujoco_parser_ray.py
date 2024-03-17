@@ -110,7 +110,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
             is_deterministic=True,
         )
 
-        self.pretrain_model.load_state_dict(torch.load('code/pretrain/240313_walk_keypos.pth'))
+        self.pretrain_model.load_state_dict(torch.load('code/pretrain/240315_walk_ctrl_minimize.pth'))
 
         self.pretrain_model.running_mean_std.eval()
         self.pretrain_model.eval()

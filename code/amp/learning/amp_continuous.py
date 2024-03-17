@@ -313,7 +313,7 @@ class AMPAgent(common_agent.CommonAgent):
         MPC_motion_times = torch.zeros((MPC_obs.shape[0],), device=self.ppo_device)
         for L in range(315): # TODO y0-0n: hard coding
             for H in range(50):
-                MPC_motion_times[50*L+H] = 0.00833 * (L + H+1)
+                MPC_motion_times[50*L+H] = 0.00833 * (L + H)
         motion_times = MPC_motion_times[1:].clone()
         input_dict = {
             'is_train': True,
@@ -329,6 +329,7 @@ class AMPAgent(common_agent.CommonAgent):
         del res_dict['entropy']
         res_dict['neglogpacs'] = res_dict['prev_neglogp']
         res_dict['obses'] = prev_obses
+        next_obses[:, 3:7] = next_obses[:, [4,5,6,3]] # TODO: need to be changed
         res_dict['next_obses'] = next_obses
         res_dict['actions'] = actions
         res_dict['played_frames'] = actions.shape[0]
@@ -383,11 +384,11 @@ class AMPAgent(common_agent.CommonAgent):
         #     batch_dict['amp_obs_replay'] = self._amp_replay_buffer.sample(num_obs_samples)['amp_obs']
 
         # y0-0n: Concat MPC Dataset
-        MPC_batch_dict = self.build_MPC_dataset()
-        for key in batch_dict.keys() - ['amp_obs', 'played_frames']:
-            batch_dict[key] = torch.cat((batch_dict[key],MPC_batch_dict[key]))
+        # MPC_batch_dict = self.build_MPC_dataset()
+        # for key in batch_dict.keys() - ['amp_obs', 'played_frames']:
+        #     batch_dict[key] = torch.cat((batch_dict[key],MPC_batch_dict[key]))
 
-        batch_dict['played_frames'] = batch_dict['played_frames'] + MPC_batch_dict['played_frames']
+        # batch_dict['played_frames'] = batch_dict['played_frames'] + MPC_batch_dict['played_frames']
         self.set_train()
 
         self.curr_frames = batch_dict.pop('played_frames')
@@ -517,7 +518,8 @@ class AMPAgent(common_agent.CommonAgent):
 
         with torch.cuda.amp.autocast(enabled=self.mixed_precision):
             res_dict = self.model(batch_dict)
-            res_dict['prev_neglogp'] = torch.min(res_dict['prev_neglogp'], torch.ones_like(res_dict['prev_neglogp'])*1e4)
+            # y0-0n: clamp neglogp
+            # res_dict['prev_neglogp'] = torch.min(res_dict['prev_neglogp'], torch.ones_like(res_dict['prev_neglogp'])*10)
             action_log_probs = res_dict['prev_neglogp']
             values = res_dict['values']
             entropy = res_dict['entropy']
@@ -620,7 +622,7 @@ class AMPAgent(common_agent.CommonAgent):
         super()._init_train()
         self._init_amp_demo_buf()
         # y0-0n: MPC dataset
-        self._init_MPC_dataset_buf()
+        # self._init_MPC_dataset_buf()
         # self._fetch_MPC_experience_buf()
         return
 
@@ -714,7 +716,7 @@ class AMPAgent(common_agent.CommonAgent):
     
     def _init_MPC_dataset_buf(self):
         import pickle
-        with open(file='asset/smpl_rig/motion/MPC dataset 0309.pkl', mode='rb') as f:
+        with open(file='asset/smpl_rig/motion/MPC_dataset_240315_ctrl_minimize.pkl', mode='rb') as f:
             dataset = pickle.load(f)
         
         N = dataset['root_pos'].shape[0]
@@ -800,9 +802,9 @@ class AMPAgent(common_agent.CommonAgent):
         qvel_reward = torch.exp(-1e-1*qvel_reward)
 
         # key point task position error
-        key_pos_reward = key_pos_sample - local_key_pos
-        key_pos_reward = torch.sum(torch.abs(key_pos_reward),axis=1)
-        key_pos_reward = torch.exp(-40*key_pos_reward)
+        key_pos_diff = key_pos_sample - local_key_pos
+        key_pos_reward = torch.sum(torch.abs(key_pos_diff),axis=1)
+        key_pos_reward = torch.exp(-30*key_pos_reward)
 
         # COM error
         root_position_diff = root_pos_sample[...,:3] - root_pos[...,:3]

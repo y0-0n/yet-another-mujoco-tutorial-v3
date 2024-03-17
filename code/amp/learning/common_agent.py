@@ -99,7 +99,7 @@ class CommonAgent(a2c_continuous.A2CAgent):
 
         self.use_experimental_cv = self.config.get('use_experimental_cv', True)
         self.dataset = amp_datasets.AMPDataset(self.batch_size, self.minibatch_size, self.is_discrete, self.is_rnn, self.ppo_device, self.seq_len)
-        self.dataset_MPC = amp_datasets.AMPDataset(4096, 4096, self.is_discrete, self.is_rnn, self.ppo_device, self.seq_len)
+        # self.dataset_MPC = amp_datasets.AMPDataset(4096, 4096, self.is_discrete, self.is_rnn, self.ppo_device, self.seq_len)
         self.algo_observer.after_init(self)
         
         return
