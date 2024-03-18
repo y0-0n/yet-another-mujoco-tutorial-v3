@@ -47,9 +47,8 @@ class CommonPlayer(players.PpoPlayerContinuous):
         net_config = self._build_net_config()
         self._build_net(net_config)
 
-        # ray yoon0-0
-        for env in self.env.mujoco_envs:
-            env.init_models.remote(model=self.model.to('cpu'),running_mean_std=self.running_mean_std.to('cpu'),value_mean_std=None)
+        #  yoon0-0
+        self.env.test_env.init_models.remote(model=self.model.to('cpu'),running_mean_std=self.running_mean_std.to('cpu'),value_mean_std=None)
         
         return
 

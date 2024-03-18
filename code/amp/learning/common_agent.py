@@ -113,10 +113,12 @@ class CommonAgent(a2c_continuous.A2CAgent):
         for env in self.vec_env.env.mujoco_envs:
             env.init_models.remote(model=self.model.to('cpu'),running_mean_std=self.running_mean_std.to('cpu'),value_mean_std=self.value_mean_std.to('cpu'))
         
+        self.vec_env.env.test_env.init_models.remote(model=self.model.to('cpu'),running_mean_std=self.running_mean_std.to('cpu'),value_mean_std=self.value_mean_std.to('cpu'))
+        
         # reset device
-        self.model.cuda()
-        self.running_mean_std.cuda()
-        self.value_mean_std.cuda()
+        # self.model.cuda()
+        # self.running_mean_std.cuda()
+        # self.value_mean_std.cuda()
 
         self.tensor_list += ['next_obses']
         return
@@ -505,10 +507,7 @@ class CommonAgent(a2c_continuous.A2CAgent):
         clip_frac = None
         if (self.ppo):
             # TODO y0-0n: MPC dataset
-            ratio = torch.exp(old_action_log_probs_batch - action_log_probs)#.detach()
-            # too_big_idxs = torch.where(ratio_>1e5)
-            # ratio_[too_big_idxs] = torch.exp((old_action_log_probs_batch[too_big_idxs] - action_log_probs[too_big_idxs])/10)
-            # ratio = ratio_.clone()
+            ratio = torch.exp(old_action_log_probs_batch - action_log_probs)
             
             surr1 = advantage * ratio
             surr2 = advantage * torch.clamp(ratio, 1.0 - curr_e_clip,

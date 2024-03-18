@@ -395,28 +395,29 @@ class VecTask(Env):
             Observations are dict of observations (currently only one member called 'obs')
         """
 
-        # randomize actions
-        # if self.dr_randomizations.get('actions', None):
-        #     actions = self.dr_randomizations['actions']['noise_lambda'](actions)
-
+        rollouts = None
         if not test:
             ray_dict = {'model': model.cpu().state_dict(),
                 'running_mean_std': running_mean_std.cpu().state_dict(),
                 'value_mean_std': value_mean_std.cpu().state_dict(),
                 }
+            # yoon0-0: [step_loop, pd_step_loop]
+            rollouts = [env.step_loop.remote(
+                ray_dict=ray_dict,
+                nstep=1,
+                test=test
+            ) for env in self.mujoco_envs]
+
         else:
             ray_dict = {'model': model.cpu().state_dict(),
                 'running_mean_std': running_mean_std.cpu().state_dict(),
                 # 'value_mean_std': value_mean_std.cpu().state_dict(),
                 }
-        
-        # yoon0-0: [step_loop, pd_step_loop]
-        rollouts = [env.step_loop.remote(
-            ray_dict=ray_dict,
-            nstep=1,
-            test=test
-            # model=model.to('cpu'),running_mean_std=running_mean_std.to('cpu'),value_mean_std=value_mean_std.to('cpu')
-            ) for env in self.mujoco_envs]
+            rollouts = [self.test_env.step_loop.remote(
+                ray_dict=ray_dict,
+                nstep=1,
+                test=test
+            )]
 
         self._contact_forces = torch.zeros_like(self._contact_forces)
         results = ray.get(rollouts)
