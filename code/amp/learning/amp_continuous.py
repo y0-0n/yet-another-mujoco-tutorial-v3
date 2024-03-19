@@ -161,8 +161,8 @@ class AMPAgent(common_agent.CommonAgent):
 
         return batch_dict
     
-    def env_step(self):
-        obs, rewards, dones, infos = self.vec_env.step(self.model, self.running_mean_std, self.value_mean_std)
+    def env_step(self, test=False):
+        obs, rewards, dones, infos = self.vec_env.step(self.model, self.running_mean_std, self.value_mean_std, test=test)
 
         if self.value_size == 1:
             rewards = rewards.unsqueeze(2)
@@ -226,14 +226,6 @@ class AMPAgent(common_agent.CommonAgent):
         # mb_motion_time = self.experience_buffer.tensor_dict['motion_times']
         # amp_rewards = self._calc_amp_rewards(mb_amp_obs)
         deepmimic_rewards = self._calc_deepmimic_rewards(self.obs['obs'], infos['motion_times'].transpose(0,1)) # TODO: Check next observation is right
-        wandb.log(
-            {
-                "deepmimic_reward": torch.mean(deepmimic_rewards[0]),
-                "qpos_reward": torch.mean(deepmimic_rewards[1]['qpos']),
-                "qvel_reward": torch.mean(deepmimic_rewards[1]['qvel']),
-                "key_pos_reward": torch.mean(deepmimic_rewards[1]['key_pos']),
-                "root_position": torch.mean(deepmimic_rewards[1]['root_position'])
-            })
         mb_rewards = deepmimic_rewards[0]
         # mb_rewards = self._combine_rewards(mb_rewards, amp_rewards)
 
@@ -467,6 +459,28 @@ class AMPAgent(common_agent.CommonAgent):
         train_info['play_time'] = play_time
         train_info['update_time'] = update_time
         train_info['total_time'] = total_time
+
+        # y0-0n: evaluation
+        if self.epoch_num % 50 == 0:
+            self.obs, rewards, self.dones, infos = self.env_step(test=True)
+            mb_rewards = self.experience_buffer.tensor_dict['rewards']
+            # y0-0n: AMP
+            # mb_obs = self.experience_buffer.tensor_dict['obses']
+            # mb_motion_time = self.experience_buffer.tensor_dict['motion_times']
+            # amp_rewards = self._calc_amp_rewards(mb_amp_obs)
+            deepmimic_rewards = self._calc_deepmimic_rewards(self.obs['obs'], infos['motion_times'].transpose(0,1)) # TODO: Check next observation is right
+            wandb.log(
+                {
+                    "deepmimic_reward": torch.mean(deepmimic_rewards[0]),
+                    "qpos_reward": torch.mean(deepmimic_rewards[1]['qpos']),
+                    "qvel_reward": torch.mean(deepmimic_rewards[1]['qvel']),
+                    "key_pos_reward": torch.mean(deepmimic_rewards[1]['key_pos']),
+                    "root_position": torch.mean(deepmimic_rewards[1]['root_position']),
+                    'bound_loss': torch_ext.mean_list(train_info['b_loss']).item(),
+                    'actor_loss': torch_ext.mean_list(train_info['actor_loss']).item(),
+                    'critic_loss': torch_ext.mean_list(train_info['critic_loss']).item(),
+                })
+
         # y0-0n: AMP
         # self._record_train_batch_info(batch_dict, train_info)
 

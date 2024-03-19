@@ -87,6 +87,7 @@ class Env(ABC):
             self.graphics_device_id = -1
 
         self.num_environments = config["env"]["numEnvs"]
+        self.num_test_environments = config["env"]["numTestEnvs"]
         # self.num_mujoco_envs = config["env"]["numMuJoCoEnvs"]
         self.num_agents = config["env"].get("numAgents", 1)  # used for multi-agent environments
         self.num_observations = config["env"]["numObservations"]
@@ -150,6 +151,11 @@ class Env(ABC):
     def num_envs(self) -> int:
         """Get the number of environments."""
         return self.num_environments
+    
+    @property
+    def num_test_envs(self) -> int:
+        """Get the number of environments."""
+        return self.num_test_environments
 
     @property
     def num_acts(self) -> int:
@@ -396,28 +402,31 @@ class VecTask(Env):
         """
 
         rollouts = None
-        if not test:
+
+        if value_mean_std is not None:
             ray_dict = {'model': model.cpu().state_dict(),
                 'running_mean_std': running_mean_std.cpu().state_dict(),
                 'value_mean_std': value_mean_std.cpu().state_dict(),
-                }
+            }
+        else:
+            ray_dict = {'model': model.cpu().state_dict(),
+                'running_mean_std': running_mean_std.cpu().state_dict(),
+                # 'value_mean_std': value_mean_std.cpu().state_dict(),
+            }
+
+        if not test:
             # yoon0-0: [step_loop, pd_step_loop]
             rollouts = [env.step_loop.remote(
                 ray_dict=ray_dict,
                 nstep=1,
                 test=test
             ) for env in self.mujoco_envs]
-
         else:
-            ray_dict = {'model': model.cpu().state_dict(),
-                'running_mean_std': running_mean_std.cpu().state_dict(),
-                # 'value_mean_std': value_mean_std.cpu().state_dict(),
-                }
-            rollouts = [self.test_env.step_loop.remote(
+            rollouts = [env.step_loop.remote(
                 ray_dict=ray_dict,
                 nstep=1,
                 test=test
-            )]
+            ) for env in self.test_envs]
 
         self._contact_forces = torch.zeros_like(self._contact_forces)
         results = ray.get(rollouts)

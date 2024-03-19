@@ -10,6 +10,7 @@ env_config:
 
 env:
     numEnvs: ${resolve_default:4096,${...num_envs}}
+    numTestEnvs: ${resolve_default:4096,${...num_test_envs}}
     # numMuJoCoEnvs: ${resolve_default:2,${...num_mujoco_envs}}
     envSpacing: 5
     episodeLength: 100
