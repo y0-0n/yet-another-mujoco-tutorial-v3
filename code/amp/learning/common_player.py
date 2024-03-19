@@ -48,7 +48,8 @@ class CommonPlayer(players.PpoPlayerContinuous):
         self._build_net(net_config)
 
         #  yoon0-0
-        self.env.test_env.init_models.remote(model=self.model.to('cpu'),running_mean_std=self.running_mean_std.to('cpu'),value_mean_std=None)
+        [env.init_models.remote(model=self.model.to('cpu'),running_mean_std=self.running_mean_std.to('cpu'),value_mean_std=None)
+            for env in self.env.test_envs]
         
         return
 

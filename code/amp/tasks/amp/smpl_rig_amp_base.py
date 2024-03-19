@@ -212,12 +212,12 @@ class SMPLRigAMPBase(VecTask):
                                                         # pd_ingredients={"pd_offset": self._pd_action_offset, "pd_scale": self._pd_action_scale}
                                                         ) for i in range(self.num_envs)]
         
-        self.test_env = MuJoCoParserClassRay.remote(name='SMPL Rig Test',
+        self.test_envs = [MuJoCoParserClassRay.remote(name='SMPL Rig Test',
                                                         rel_xml_path=self.asset_file,
                                                         VERBOSE=False,
                                                         USE_MUJOCO_VIEWER=(not self.headless),
                                                         device=self.device,
-                                                        env_id=self.num_envs,
+                                                        env_id=i,
                                                         contact_body_ids=self._contact_body_ids.cpu(),
                                                         key_body_ids=self._key_body_ids.cpu(),
                                                         motion_lib=self._motion_lib,
@@ -226,7 +226,7 @@ class SMPLRigAMPBase(VecTask):
                                                         mode=mode,
                                                         power_scale=1.0,
                                                         # pd_ingredients={"pd_offset": self._pd_action_offset, "pd_scale": self._pd_action_scale}
-                                                        )
+                                                        ) for i in range(self.num_test_envs)]
 
         if self.headless == False:
             for i, env in enumerate(self.mujoco_envs):
@@ -236,13 +236,13 @@ class SMPLRigAMPBase(VecTask):
                         VIS_TRANSPARENT=True,VIS_CONTACTPOINT=True,
                         contactwidth=0.2,contactheight=0.1,contactrgba=np.array([1,0,0,1]),
                         VIS_JOINT=True,jointlength=0.5,jointwidth=0.1,jointrgba=[0.2,0.6,0.8,0.6])
-                    
-            self.test_env.init_viewer.remote(viewer_title='SMPL Rig Ray'+str(i),viewer_width=1200,viewer_height=800,
-                            viewer_hide_menus=True)
-            self.test_env.update_viewer.remote(azimuth=174.08,distance=15,elevation=-23,lookat=[0.1,0.05,0.16],
-                    VIS_TRANSPARENT=True,VIS_CONTACTPOINT=True,
-                    contactwidth=0.2,contactheight=0.1,contactrgba=np.array([1,0,0,1]),
-                    VIS_JOINT=True,jointlength=0.5,jointwidth=0.1,jointrgba=[0.2,0.6,0.8,0.6])
+            for i, env in enumerate(self.test_envs):
+                env.init_viewer.remote(viewer_title='SMPL Rig Ray'+str(i),viewer_width=1200,viewer_height=800,
+                        viewer_hide_menus=True)
+                env.update_viewer.remote(azimuth=174.08,distance=15,elevation=-23,lookat=[0.1,0.05,0.16],
+                        VIS_TRANSPARENT=True,VIS_CONTACTPOINT=True,
+                        contactwidth=0.2,contactheight=0.1,contactrgba=np.array([1,0,0,1]),
+                        VIS_JOINT=True,jointlength=0.5,jointwidth=0.1,jointrgba=[0.2,0.6,0.8,0.6])
 
         self.right_foot_idx = self.standard_env.model.body('right_ankle').id # NOTE: Different from Isaac index
         self.left_foot_idx = self.standard_env.model.body('left_ankle').id # NOTE: Different from Isaac index

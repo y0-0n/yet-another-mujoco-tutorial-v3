@@ -429,7 +429,10 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
                 self._contact_forces = torch.zeros_like(self._contact_forces)
                 self.tick = torch.tensor(0)
                 motion_ids = self._motion_lib.sample_motions(1)
-                self.motion_time = self._motion_lib.sample_time(motion_ids)
+                if not test:
+                    self.motion_time = self._motion_lib.sample_time(motion_ids)
+                else:
+                    self.motion_time = np.zeros((1,))
                 root_pos, root_rot, dof_pos, root_vel, root_ang_vel, dof_vel, key_pos \
                     = self._motion_lib.get_motion_state(motion_ids, self.motion_time)
             

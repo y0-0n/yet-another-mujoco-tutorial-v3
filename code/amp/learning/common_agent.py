@@ -113,7 +113,8 @@ class CommonAgent(a2c_continuous.A2CAgent):
         for env in self.vec_env.env.mujoco_envs:
             env.init_models.remote(model=self.model.to('cpu'),running_mean_std=self.running_mean_std.to('cpu'),value_mean_std=self.value_mean_std.to('cpu'))
         
-        self.vec_env.env.test_env.init_models.remote(model=self.model.to('cpu'),running_mean_std=self.running_mean_std.to('cpu'),value_mean_std=self.value_mean_std.to('cpu'))
+        for env in self.vec_env.env.test_envs:
+            env.init_models.remote(model=self.model.to('cpu'),running_mean_std=self.running_mean_std.to('cpu'),value_mean_std=self.value_mean_std.to('cpu'))
         
         # reset device
         # self.model.cuda()
@@ -169,12 +170,6 @@ class CommonAgent(a2c_continuous.A2CAgent):
                 self.writer.add_scalar('info/epochs', epoch_num, frame)
                 # y0-0n: AMP
                 # self._log_train_info(train_info, frame)
-                wandb.log({
-                    'bound_loss': torch_ext.mean_list(train_info['b_loss']).item(),
-                    'actor_loss': torch_ext.mean_list(train_info['actor_loss']).item(),
-                    'critic_loss': torch_ext.mean_list(train_info['critic_loss']).item(),
-                    })
-
 
                 self.algo_observer.after_print_stats(frame, epoch_num, total_time)
                 
