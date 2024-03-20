@@ -461,7 +461,7 @@ class AMPAgent(common_agent.CommonAgent):
         train_info['total_time'] = total_time
 
         # y0-0n: evaluation
-        if self.epoch_num % 50 == 0:
+        if self.epoch_num % 1 == 0:
             self.obs, rewards, self.dones, infos = self.env_step(test=True)
             mb_rewards = self.experience_buffer.tensor_dict['rewards']
             # y0-0n: AMP
@@ -476,7 +476,7 @@ class AMPAgent(common_agent.CommonAgent):
                     "qvel_reward": torch.mean(deepmimic_rewards[1]['qvel']),
                     "key_pos_reward": torch.mean(deepmimic_rewards[1]['key_pos']),
                     "root_position": torch.mean(deepmimic_rewards[1]['root_position']),
-                    'bound_loss': torch_ext.mean_list(train_info['b_loss']).item(),
+                    # 'bound_loss': torch_ext.mean_list(train_info['b_loss']).item(),
                     'actor_loss': torch_ext.mean_list(train_info['actor_loss']).item(),
                     'critic_loss': torch_ext.mean_list(train_info['critic_loss']).item(),
                 })
@@ -806,7 +806,7 @@ class AMPAgent(common_agent.CommonAgent):
         # diff = quat_diff(root_rot_sample, root_rot)
         qpos_reward = torch.cat((dof_diff, root_rot_diff), dim=1)
         qpos_reward = torch.sum(torch.abs(qpos_reward),axis=1)
-        qpos_reward = torch.exp(-1*qpos_reward)
+        qpos_reward = torch.exp(-1.5*qpos_reward)
 
         # angular velocity error
         # dof_vel = torch.cat((root_vel, root_ang_vel, dof_vel), dim=1)
@@ -818,7 +818,7 @@ class AMPAgent(common_agent.CommonAgent):
         # key point task position error
         key_pos_diff = key_pos_sample - local_key_pos
         key_pos_reward = torch.sum(torch.abs(key_pos_diff),axis=1)
-        key_pos_reward = torch.exp(-30*key_pos_reward)
+        key_pos_reward = torch.exp(-40*key_pos_reward)
 
         # COM error
         root_position_diff = root_pos_sample[...,:3] - root_pos[...,:3]

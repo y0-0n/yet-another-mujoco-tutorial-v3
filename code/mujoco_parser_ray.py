@@ -110,7 +110,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
             is_deterministic=True,
         )
 
-        self.pretrain_model.load_state_dict(torch.load('code/pretrain/240315_walk_ctrl_minimize.pth'))
+        self.pretrain_model.load_state_dict(torch.load('code/pretrain/240319_walk_noise_pretrain.pth'))
 
         self.pretrain_model.running_mean_std.eval()
         self.pretrain_model.eval()
@@ -402,7 +402,6 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
         return result_dict
     
     def step_loop(self,ray_dict,ctrl_idxs=None,nstep=1,INCREASE_TICK=True,test=False):
-        # from amp.tasks.amp.common_rig_amp_base import compute_humanoid_reward
         from amp.tasks.smpl_rig_amp import build_amp_observations, build_deepmimic_observations
         from amp.tasks.amp.smpl_rig_amp_base import compute_humanoid_reset2
 
@@ -421,6 +420,8 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
         trgt = None
         amp_obs = None
         body_name = None
+        pretrain_action = None
+        motion_ids = self._motion_lib.sample_motions(1)
         
         for n in range(self.horizon_length):
             # reset actor
@@ -428,7 +429,6 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
             if self.reset_flag[0]:
                 self._contact_forces = torch.zeros_like(self._contact_forces)
                 self.tick = torch.tensor(0)
-                motion_ids = self._motion_lib.sample_motions(1)
                 if not test:
                     self.motion_time = self._motion_lib.sample_time(motion_ids)
                 else:
@@ -475,15 +475,17 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
                 'rnn_states' : None
             }
             with torch.no_grad():
-                # root_state_for_pretrain_model = torch.from_numpy(np.concatenate((self.get_p_body('base')[2:], r2quat(self.get_R_body('base')), self.get_qvel_joint('base')[0:3], self.get_qvel_joint('base')[3:6]), axis=-1)).unsqueeze(0).type(torch.float32)
-                # pretrain_action, _, _, _ = self.pretrain_model(torch.cat((root_state_for_pretrain_model, self.dof_pos, self.dof_vel, self.key_body_pos.reshape(-1, 12)), dim=1))
+                root_pos, root_rot, dof_pos, root_vel, root_ang_vel, dof_vel, key_pos \
+                    = self._motion_lib.get_motion_state(motion_ids, self.motion_time)
+                GT_obs=torch.cat((root_pos[i, 2:], root_rot[i, [3,0,1,2]], root_vel[i], root_ang_vel[i], dof_pos[i], dof_vel[i], (key_pos-root_pos).reshape(12)),dim=0)
+                pretrain_action, _, _, _ = self.pretrain_model(GT_obs)
                 self.res_dict = self._model(input_dict)
 
             if not test: # Stochastic
                 self.res_dict['values'] = self.value_mean_std(self.res_dict['values'], True) # TODO y0-0n: Check this line
-                trgt = self.res_dict['actions'] #+ pretrain_action
+                trgt = self.res_dict['actions'] + pretrain_action
             else: # Deterministic
-                trgt = self.res_dict['mus'] #+ pretrain_action
+                trgt = self.res_dict['mus'] + pretrain_action
             trgt *= self.power_scale
 
             super().step(ctrl=trgt,nstep=nstep,ctrl_idxs=ctrl_idxs,INCREASE_TICK=INCREASE_TICK)

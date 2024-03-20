@@ -195,6 +195,7 @@ class SMPLRigAMPBase(VecTask):
             self._build_pd_action_offset_scale()
 
         mode = "deepmimic"
+        power_scale = 0.5
         # Ray parallelization
         self.mujoco_envs = [MuJoCoParserClassRay.remote(name='SMPL Rig Ray',
                                                         rel_xml_path=self.asset_file,
@@ -208,7 +209,7 @@ class SMPLRigAMPBase(VecTask):
                                                         max_episode_length=self.max_episode_length,
                                                         horizon_length=self.horizon_length,
                                                         mode=mode,
-                                                        power_scale=1.0,
+                                                        power_scale=power_scale,
                                                         # pd_ingredients={"pd_offset": self._pd_action_offset, "pd_scale": self._pd_action_scale}
                                                         ) for i in range(self.num_envs)]
         
@@ -224,7 +225,7 @@ class SMPLRigAMPBase(VecTask):
                                                         max_episode_length=self.max_episode_length,
                                                         horizon_length=self.horizon_length,
                                                         mode=mode,
-                                                        power_scale=1.0,
+                                                        power_scale=power_scale,
                                                         # pd_ingredients={"pd_offset": self._pd_action_offset, "pd_scale": self._pd_action_scale}
                                                         ) for i in range(self.num_test_envs)]
 
