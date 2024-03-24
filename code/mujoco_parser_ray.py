@@ -478,15 +478,15 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
                 # root_pos, root_rot, dof_pos, root_vel, root_ang_vel, dof_vel, key_pos \
                 #     = self._motion_lib.get_motion_state(motion_ids, self.motion_time)
                 # GT_obs=torch.cat((root_pos[i, 2:], root_rot[i, [3,0,1,2]], root_vel[i], root_ang_vel[i], dof_pos[i], dof_vel[i], (key_pos-root_pos).reshape(12)),dim=0)
-                pretrain_model_obs = torch.cat((self.obs[0, 2:3], self.obs[0, [6,3,4,5]], self.obs[0,7:]))
-                pretrain_action, _, _, _ = self.pretrain_model(pretrain_model_obs)
+                # pretrain_model_obs = torch.cat((self.obs[0, 2:3], self.obs[0, [6,3,4,5]], self.obs[0,7:]))
+                # pretrain_action, _, _, _ = self.pretrain_model(pretrain_model_obs)
                 self.res_dict = self._model(input_dict)
 
             if not test: # Stochastic
                 self.res_dict['values'] = self.value_mean_std(self.res_dict['values'], True) # TODO y0-0n: Check this line
-                trgt = self.res_dict['actions'] * self.power_scale + pretrain_action
+                trgt = self.res_dict['actions'] * self.power_scale# + pretrain_action
             else: # Deterministic
-                trgt = self.res_dict['mus'] * self.power_scale + pretrain_action
+                trgt = self.res_dict['mus'] * self.power_scale# + pretrain_action
 
             super().step(ctrl=trgt,nstep=nstep,ctrl_idxs=ctrl_idxs,INCREASE_TICK=INCREASE_TICK)
             # next root state
