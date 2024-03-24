@@ -435,7 +435,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
                     self.motion_time = np.zeros((1,))
                 root_pos, root_rot, dof_pos, root_vel, root_ang_vel, dof_vel, key_pos \
                     = self._motion_lib.get_motion_state(motion_ids, self.motion_time)
-            
+                            
                 # set env state
                 # TODO: i
                 q=torch.cat((root_pos[i], root_rot[i, [3,0,1,2]], dof_pos[i]),dim=0) # root_pos, root_rot, dof_pos
@@ -465,6 +465,10 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
                 # self.prev_deepmimic_obses[n] = build_deepmimic_observations(self.root_states, self.dof_pos, self.dof_vel, self.key_body_pos)[0]
 
             if self.USE_MUJOCO_VIEWER:
+                _, _, _, _, _, _, key_pos \
+                    = self._motion_lib.get_motion_state(motion_ids, self.motion_time)
+                for pos in key_pos.reshape(-1, 3):
+                    self.plot_sphere(p=pos.numpy(),r=0.05,rgba=[1.0,0.0,0.0,0.5],label='')
                 self.render()
             
             processed_obs = self._preproc_obs(self.obs, self.running_mean_std)
@@ -475,9 +479,6 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
                 'rnn_states' : None
             }
             with torch.no_grad():
-                # root_pos, root_rot, dof_pos, root_vel, root_ang_vel, dof_vel, key_pos \
-                #     = self._motion_lib.get_motion_state(motion_ids, self.motion_time)
-                # GT_obs=torch.cat((root_pos[i, 2:], root_rot[i, [3,0,1,2]], root_vel[i], root_ang_vel[i], dof_pos[i], dof_vel[i], (key_pos-root_pos).reshape(12)),dim=0)
                 # pretrain_model_obs = torch.cat((self.obs[0, 2:3], self.obs[0, [6,3,4,5]], self.obs[0,7:]))
                 # pretrain_action, _, _, _ = self.pretrain_model(pretrain_model_obs)
                 self.res_dict = self._model(input_dict)
