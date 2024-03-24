@@ -110,7 +110,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
             is_deterministic=True,
         )
 
-        self.pretrain_model.load_state_dict(torch.load('code/pretrain/240321_walk_bigger_noise.pth'))
+        self.pretrain_model.load_state_dict(torch.load('code/pretrain/240324_walk_bigggger_noise_weight_decay.pth'))
 
         self.pretrain_model.running_mean_std.eval()
         self.pretrain_model.eval()
