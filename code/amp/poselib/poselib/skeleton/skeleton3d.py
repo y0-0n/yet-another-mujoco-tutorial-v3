@@ -430,7 +430,8 @@ class SkeletonState(Serializable):
         if not hasattr(self, "_root_translation"):
             self._root_translation = self.tensor[
                 # ..., self.num_joints * 4 : self.num_joints * 4 + 3
-                ..., 244:247 # smpl_rig
+                # ..., 244:247 # smpl_rig
+                ..., self.num_joints * 4 : self.num_joints * 4 + 3 # atlas
             ]
         return self._root_translation
 

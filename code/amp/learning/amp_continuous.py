@@ -46,8 +46,8 @@ import amp.learning.common_agent as common_agent
 import wandb
 from tensorboardX import SummaryWriter
 # SMPL
-from amp.tasks.smpl_rig_amp import build_amp_observations
-from amp.tasks.amp.smpl_rig_amp_base import dof_to_obs,dof_to_diff
+# from amp.tasks.smpl_rig_amp import build_amp_observations
+# from amp.tasks.amp.smpl_rig_amp_base import dof_to_obs,dof_to_diff
 
 # from util import r2rpy, quat2r
 
@@ -796,9 +796,9 @@ class AMPAgent(common_agent.CommonAgent):
         root_rot_sample = deepmimic_obs[:, 3:7]
         root_vel_sample = deepmimic_obs[:, 7:10]
         root_ang_vel_sample = deepmimic_obs[:, 10:13]
-        dof_pos_sample = deepmimic_obs[:, 13:50]
-        dof_vel_sample = deepmimic_obs[:, 50:87]
-        key_pos_sample = deepmimic_obs[:, 87:99]
+        dof_pos_sample = deepmimic_obs[:, 13:43]
+        dof_vel_sample = deepmimic_obs[:, 43:73]
+        key_pos_sample = deepmimic_obs[:, 73:85]
 
         dof_diff = dof_pos_sample - dof_pos
         # root_rot_diff = torch.stack(get_euler_xyz(root_rot_sample),axis=1) - torch.stack(get_euler_xyz(root_rot),axis=1) #quat_to_tan_norm(root_rot_sample) - quat_to_tan_norm(root_rot)

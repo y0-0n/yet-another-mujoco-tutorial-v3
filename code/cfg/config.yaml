@@ -46,7 +46,7 @@ headless: True
 
 # set default task and default training config based on task
 defaults:
-    - task: SMPLRigAMP # AtlasAMP
+    - task: AtlasAMP
     - train: ${task}PPO
     - hydra/job_logging: disabled
 

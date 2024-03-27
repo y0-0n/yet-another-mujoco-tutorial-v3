@@ -33,11 +33,12 @@
 from .common_rig_amp import CommonRigAMP
 from .myosuite_amp import MyoSuiteAMP
 from .smpl_rig_amp import SMPLRigAMP
-
+from .atlas_amp import AtlasAMP
 
 # Mappings from strings to environments
 mujoco_task_map = {
     "CommonRigAMP": CommonRigAMP,
     "MyoSuiteAMP": MyoSuiteAMP,
-    "SMPLRigAMP": SMPLRigAMP
+    "SMPLRigAMP": SMPLRigAMP,
+    "AtlasAMP": AtlasAMP,
 }

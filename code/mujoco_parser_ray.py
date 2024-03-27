@@ -12,7 +12,7 @@ from pid import PID_ControllerClass
 import sys
 import gc
 from pretrain.policy import GaussianPolicy
-NUM_DEEPMIMIC_OBS = 99 # [root_p+root_rot+dof_pos(44), root_vel+root_ang_vel+dof_vel(43), key_body_pos(12), COM(3)]
+NUM_DEEPMIMIC_OBS = 85 # [root_p+root_rot+dof_pos(44), root_vel+root_ang_vel+dof_vel(43), key_body_pos(12), COM(3)]
 
 @ray.remote
 class MuJoCoParserClassRay(MuJoCoParserClass):
@@ -32,7 +32,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
                  pd_ingredients={}, # required
                  max_episode_length=300,
                  power_scale=1.,
-                 mode='amp' #[amp, deepmimic]
+                 mode='amp', #[amp, deepmimic]
                  ):
         """
             Initialize MuJoCo parser with ray
@@ -236,9 +236,9 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
         return result_dict
     
     def _compute_humanoid_obs(self):
-        from amp.tasks.amp.smpl_rig_amp_base import compute_humanoid_observations
+        from amp.tasks.amp.atlas_amp_base import compute_humanoid_observations
 
-        self.root_states[0] = torch.from_numpy(np.concatenate((self.get_p_body('root'), r2quat(self.get_R_body('root'))[[1,2,3,0]], self.get_qvel_joint(0)[0:3], self.get_qvel_joint(0)[3:6]), axis=-1))
+        self.root_states[0] = torch.from_numpy(np.concatenate((self.get_p_body(1), r2quat(self.get_R_body(1))[[1,2,3,0]], self.get_qvel_joint(0)[0:3], self.get_qvel_joint(0)[3:6]), axis=-1))
         self.dof_pos[0] = torch.from_numpy(self.get_qposes())
         self.dof_vel[0] = torch.from_numpy(self.get_qvels())
         self.key_body_pos[0] = torch.from_numpy(self.get_ps()[self._key_body_ids, :])
@@ -402,8 +402,8 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
         return result_dict
     
     def step_loop(self,ray_dict,ctrl_idxs=None,nstep=1,INCREASE_TICK=True,test=False):
-        from amp.tasks.smpl_rig_amp import build_amp_observations, build_deepmimic_observations
-        from amp.tasks.amp.smpl_rig_amp_base import compute_humanoid_reset2
+        from amp.tasks.atlas_amp import build_amp_observations, build_deepmimic_observations
+        from amp.tasks.amp.atlas_amp_base import compute_humanoid_reset2
 
         # self._model,self.running_mean_std,self.value_mean_std = ray_dict['model'],ray_dict['running_mean_std'],ray_dict['value_mean_std']
         self._model.load_state_dict(ray_dict['model'])
@@ -448,7 +448,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
                 if self.mode == 'amp':
                     self.obs = self._compute_humanoid_obs()
                 elif self.mode == 'deepmimic':
-                    self.root_states[0] = torch.from_numpy(np.concatenate((self.get_p_body('base'), r2quat(self.get_R_body('base'))[[1,2,3,0]], self.get_qvel_joint('base')[0:3], self.get_qvel_joint('base')[3:6]), axis=-1))
+                    self.root_states[0] = torch.from_numpy(np.concatenate((self.get_p_body(1), r2quat(self.get_R_body(1))[[1,2,3,0]], self.get_qvel_joint(0)[0:3], self.get_qvel_joint(0)[3:6]), axis=-1))
                     self.dof_pos[0] = torch.from_numpy(self.get_qposes())
                     # self.quat_rot[0]
                     self.dof_vel[0] = torch.from_numpy(self.get_qvels())
@@ -516,7 +516,7 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
                 self.obs = self._compute_humanoid_obs()
                 amp_obs = build_amp_observations(self.root_states, self.dof_pos, self.dof_vel, self.key_body_pos, False)[0]
             elif self.mode == 'deepmimic':
-                self.root_states[0] = torch.from_numpy(np.concatenate((self.get_p_body('base'), r2quat(self.get_R_body('base'))[[1,2,3,0]], self.get_qvel_joint('base')[0:3], self.get_qvel_joint('base')[3:6]), axis=-1))
+                self.root_states[0] = torch.from_numpy(np.concatenate((self.get_p_body(1), r2quat(self.get_R_body(1))[[1,2,3,0]], self.get_qvel_joint(0)[0:3], self.get_qvel_joint(0)[3:6]), axis=-1))
                 self.dof_pos[0] = torch.from_numpy(self.get_qposes())
                 # self.quat_rot[0]
                 self.dof_vel[0] = torch.from_numpy(self.get_qvels())
