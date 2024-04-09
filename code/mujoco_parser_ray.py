@@ -465,8 +465,11 @@ class MuJoCoParserClassRay(MuJoCoParserClass):
                 # self.prev_deepmimic_obses[n] = build_deepmimic_observations(self.root_states, self.dof_pos, self.dof_vel, self.key_body_pos)[0]
 
             if self.USE_MUJOCO_VIEWER:
+                temp_key_body_ids = self._motion_lib._key_body_ids.copy()
+                self._motion_lib._key_body_ids = np.arange(1, 31)
                 _, _, _, _, _, _, key_pos \
                     = self._motion_lib.get_motion_state(motion_ids, self.motion_time)
+                self._motion_lib._key_body_ids = temp_key_body_ids
                 for pos in key_pos.reshape(-1, 3):
                     self.plot_sphere(p=pos.numpy(),r=0.05,rgba=[1.0,0.0,0.0,0.5],label='')
                 self.render()
